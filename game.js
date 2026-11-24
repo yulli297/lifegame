@@ -36,7 +36,7 @@ const CFG = {
   loveRel: 65,               // 청년기 끝에 관계가 이 이상이면 결혼 이야기가 찾아옴
   starRatio: 0.75,           // 직업 이벤트에서 성실한 선택 비율이 이 이상이면 중년기에 도전 기회
   income: { office: [0, 0, 3, 4, 0], doctor: [0, 0, -4, 8, 0], jobless: [0, 0, -4, 0, 0], athlete: [0, 0, 4, 1, 0], idol: [0, 0, -2, 4, 0], diplomat: [0, 0, 2, 4, 0], investor: [0, 0, 2, 5, 0], teacher: [0, 0, 2, 3, 0] },
-  end: { balMin: 38, balSpread: 45, luckAbs: 30, lopMin: 22, lopSpread: 58 }
+  end: { balMin: 38, balSpread: 45, luckAbs: 28, lopSpread: 65, lopMin: 15, effortRatio: 0.8 }
 };
 G.CFG = CFG;
 
@@ -915,7 +915,8 @@ G.ending = function (S) {
   else if (mn >= E_.balMin && spread <= E_.balSpread) key = 'balanced';
   else if (S.gain.luck + S.gain.born >= E_.luckAbs) key = 'lucky';
   else if (spread >= E_.lopSpread || mn < E_.lopMin) key = 'lopsided';
-  else key = 'effort';
+  else if (1 - luckRatio >= E_.effortRatio) key = 'effort';   // 내 선택으로 얻은 몫이 대부분
+  else key = 'lucky';
   const info = ENDINGS[key];
   const cname = S.careerKey && CAREERS[S.careerKey] ? CAREERS[S.careerKey].name : '';
   const top = S.imp.map((x, i) => Object.assign({ i }, x)).sort((a, b) => b.mag - a.mag).slice(0, 5).sort((a, b) => a.i - b.i);
