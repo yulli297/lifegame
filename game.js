@@ -1,0 +1,618 @@
+/* 인생 한 판 - 게임 엔진 + 이벤트 데이터 (화면과 분리: 브라우저/Node 모두 사용 가능) */
+(function (root) {
+'use strict';
+const G = {};
+G.rng = Math.random;
+
+/* ---------- 기본 설정 ---------- */
+const STATS = ['hp', 'kn', 'mo', 'hap', 'rel'];
+const SNAME = { hp: '건강', kn: '지식', mo: '재산', hap: '행복', rel: '관계' };
+const SICON = { hp: '💪', kn: '📘', mo: '💰', hap: '😊', rel: '🤝' };
+const SCOLOR = { hp: '#E8806F', kn: '#6FA8DC', mo: '#E3B341', hap: '#F29CC1', rel: '#7CC6A4' };
+const STAGES = [
+  { name: '아동기', range: [7, 12] }, { name: '청소년기', range: [13, 19] },
+  { name: '청년기', range: [20, 34] }, { name: '중년기', range: [35, 59] },
+  { name: '노년기', range: [60, 85] }
+];
+const PLANS = [
+  ['m:c_start', 'p', 'p', 'p'],
+  ['m:t_mid', 'm:t_high', 'p', 'p', 'p'],
+  ['m:y_path'],
+  ['j', 'p', 'm:m_lotto', 'j', 'j'],
+  ['j', 'm:o_look', 'm:o_final']
+];
+const PLAN_LEN = [4, 5, 5, 5, 3];
+const CFG = {
+  talentChance: 0.05, talentBonus: 10,
+  floorYoung: 15,            // 20세 이전 능력치 최저 보호
+  crisisClear: 30,           // 위기 해제 기준
+  drift: { hp: [0, -3, -5, -7, 0], hap: [-3, -7, -9, -9, 0], rel: [0, -6, -8, -8, 0], kn: [0, 0, -5, -6, 0], mo: [0, 0, -3, -4, 0] },
+  neglect: { below: 40, d: -8 },  // 방치된 능력치는 단계가 끝날 때 더 떨어짐
+  famSoft: 2,                // '가족시간' 태그가 있으면 관계 감소를 완화
+  illHp: 25, illChance: 0.3, // 큰 병 조건/확률
+  earlyEndHp: 20,            // 노년기 일찍 마무리 기준
+  lottoP: 0.01,
+  income: { office: [0, 0, 3, 4, 0], doctor: [0, 0, -4, 8, 0], jobless: [0, 0, -4, 0, 0] },
+  end: { balMin: 38, balSpread: 45, luckAbs: 30, lopMin: 22, lopSpread: 58 }
+};
+G.CFG = CFG;
+
+const TAGS = {
+  '친구돕기': '어린 시절 친구를 도왔던 일',
+  '절약': '용돈을 아껴 모으던 습관',
+  '충동소비': '마음 가는 대로 써 버리던 습관',
+  '운동습관': '꾸준히 몸을 움직이던 습관',
+  '밤샘습관': '밤늦게까지 깨어 있던 습관',
+  '성실': '꾸준히 공부하던 시간',
+  '독서': '책을 가까이하던 시간',
+  '가족시간': '가족과 함께한 시간',
+  '약속어김': '친구에게 둘러댔던 일',
+  '구직경험': '취업을 준비하던 시간',
+  '일어선사람': '위기를 이겨 낸 경험',
+  '큰병': '크게 아팠던 경험',
+  '행운의주인공': '친구가 건네준 복권'
+};
+
+const CAREERS = {
+  office: { name: '회사원', ready: true, req: S => S.st.kn >= 40,
+    pick: '회사원 — 정직상사에서 일해요. 안정적이고 규칙적이지만 바쁜 날도 많아요.', fx: { mo: 2 } },
+  doctor: { name: '의사', ready: true, req: S => S.sc.study >= 4 && S.sc.care >= 1 && S.st.kn >= 60,
+    pick: '의사 — 믿음대학교 의과대학에 도전해요. 사람을 돌보는 보람이 크지만, 오랫동안 공부해야 하고 그동안은 돈을 벌 수 없어요.', fx: { kn: 2 } },
+  athlete: { name: '야구선수', ready: false, req: S => S.sc.sport >= 5 && S.st.hp >= 60 },
+  idol: { name: '아이돌', ready: false, req: S => S.sc.art >= 5 && S.sc.social >= 2 && S.st.hp >= 45 },
+  diplomat: { name: '외교관', ready: false, req: S => S.sc.study >= 5 && S.sc.social >= 4 },
+  investor: { name: '투자전문가', ready: false, req: S => S.sc.econ >= 4 && S.st.kn >= 60 },
+  teacher: { name: '교사', ready: false, req: S => S.sc.care >= 4 && S.st.kn >= 55 }
+};
+
+const REC = {
+  hp: [{ t: '오늘만큼은 하던 일을 잠시 미루고 몸부터 돌본다', r: '충분히 쉬고 나니 몸이 한결 가벼워졌어요.', fx: { hp: 14, mo: -2 } },
+       { t: '병원에서 진찰받고 규칙적인 생활을 시작한다', r: '작은 습관이 몸을 다시 일으켜 세웠어요.', fx: { hp: 13, hap: -2 } }],
+  mo: [{ t: '이번 일은 잠시 미루고 살림부터 꼼꼼히 살펴본다', r: '지출을 줄이니 조금씩 숨통이 트였어요.', fx: { mo: 14, hap: -2 } },
+       { t: '일을 하나 더 구해 수입을 늘려 본다', r: '바쁘지만 통장에 다시 조금씩 돈이 쌓였어요.', fx: { mo: 13, hp: -2 } }],
+  kn: [{ t: '이번 일은 잠시 미루고 기초부터 다시 공부한다', r: '차근차근 공부하니 막막함이 조금씩 풀렸어요.', fx: { kn: 14, hp: -1 } },
+       { t: '아는 사람에게 모르는 것을 물어보고 배운다', r: '물어보니 생각보다 쉽게 길이 보였어요.', fx: { kn: 13, rel: 1 } }],
+  hap: [{ t: '이번 일은 잠시 미루고 마음 편히 쉰다', r: '아무것도 하지 않은 시간이 마음을 달래 주었어요.', fx: { hap: 14, mo: -2 } },
+        { t: '좋아하던 일을 다시 꺼내 즐겨 본다', r: '좋아하는 일을 하니 웃음이 조금씩 돌아왔어요.', fx: { hap: 13, mo: -1 } }],
+  rel: [{ t: '이번 일은 잠시 미루고 소중한 사람에게 먼저 연락한다', r: '먼저 내민 손을 따뜻하게 잡아 주었어요.', fx: { rel: 14, hap: -1 } },
+        { t: '모임에 나가 새로운 사람들과 이야기해 본다', r: '새로운 인연이 조금씩 곁으로 다가왔어요.', fx: { rel: 13, mo: -2 } }]
+};
+
+const LOW = { hp: '몸이 조금 지쳐 있어요.', kn: '배움이 조금 아쉬웠어요.', mo: '살림이 조금 빠듯해졌어요.', hap: '마음이 조금 무거워졌어요.', rel: '곁에 있는 사람이 줄어든 느낌이에요.' };
+const HIGH = { hp: '몸이 튼튼해졌어요.', kn: '많이 배우고 자랐어요.', mo: '살림이 든든해졌어요.', hap: '마음이 따뜻해졌어요.', rel: '좋은 사람들이 곁에 있어요.' };
+
+const TALENT = {
+  hp: '감기도 잘 안 걸리는 튼튼한 몸으로 태어났어요.',
+  kn: '호기심이 반짝이는 눈으로 세상을 바라보는 아이였어요.',
+  mo: '집안에 작은 행운이 깃들어 살림이 든든했어요.',
+  hap: '잘 웃는 아이라는 말을 자주 들었어요.',
+  rel: '처음 보는 사람과도 금방 친해지는 따뜻한 아이였어요.'
+};
+
+const ENDINGS = {
+  balanced: { title: '균형 잡힌 삶', img: 'end_balanced', text: '몸도 마음도, 사람들과의 관계도 고르게 돌보며 걸어온 인생이었어요. 어느 한쪽에 치우치지 않고 나를 지켜 낸 시간이 노을처럼 따뜻하게 남았어요.' },
+  rise: { title: '넘어져도 일어선 삶', img: 'end_rise', text: '힘든 시간도 있었지만 포기하지 않고 다시 일어선 인생이었어요. 넘어졌던 자리가 오히려 나를 더 단단하게 만들어 주었어요.' },
+  lucky: { title: '행운이 함께한 삶', img: 'end_lucky', text: '좋은 일들이 찾아와 준 인생이었어요. 받은 행운을 어떻게 나누고 지켜 냈는지가 이 인생을 더욱 빛나게 해요.' },
+  effort: { title: '땀으로 일군 삶', img: 'end_effort', text: '한 걸음 한 걸음, 스스로 고르고 노력해서 만들어 온 인생이었어요. 쌓아 온 시간이 지금의 나를 만들었어요.' },
+  lopsided: { title: '한 곳을 향해 달린 삶', img: 'end_lopsided', text: '한 가지에 온 마음을 쏟아 온 인생이었어요. 돌보지 못한 곳이 있다면, 지금부터라도 천천히 눈을 돌려 봐요.' }
+};
+
+const REFLECT = [
+  '내 능력치가 가장 낮았던 때는 언제였고, 왜 그랬을까요?',
+  '다시 할 수 있다면 어떤 선택을 바꾸고 싶나요? 그 선택은 나중에 어떤 영향을 줬나요?',
+  '돈이 많은 것과 좋은 삶은 같은 걸까요? 지금의 나는 어떤 작은 습관부터 바꿔 볼까요?'
+];
+
+/* ---------- 이벤트 데이터 ---------- */
+const c = (t, fx, r, o) => Object.assign({ t, fx, r }, o || {});
+const E = (id, stage, type, title, text, choices, o) => Object.assign({ id, stage, type, title, text, choices }, o || {});
+
+const EVENTS = [
+/* ===== 아동기 ===== */
+E('c_start', 0, 'must', '새 학교의 첫날', '희망초등학교 입학식 날이에요. 낯선 교실, 낯선 얼굴들 사이에서 어떻게 시작해 볼까요?', [
+  c('옆자리 친구에게 먼저 인사를 건넨다', { rel: 8, kn: -2 }, '어색했던 교실이 금세 따뜻해졌어요.', { sc: { social: 1 } }),
+  c('조용히 책을 꺼내 읽는다', { kn: 8, rel: -3 }, '책 속 이야기에 푹 빠진 첫날이었어요.', { sc: { study: 1 }, tag: ['독서'] }),
+  c('운동장으로 달려 나가 뛰어논다', { hp: 8, kn: -2 }, '땀을 흘리며 웃다 보니 하루가 훌쩍 지났어요.', { sc: { sport: 1 } })
+]),
+E('c_friend', 0, 'pool', '짝꿍의 곤란한 아침', '짝꿍 소망이가 준비물을 깜빡하고 와서 어쩔 줄 몰라 하고 있어요.', [
+  c('내 준비물을 함께 쓰자고 한다', { rel: 7, hap: 3, kn: -1 }, '소망이가 환하게 웃었어요. 둘 사이가 더 가까워졌어요.', { sc: { care: 1 }, tag: ['친구돕기'] }),
+  c('선생님께 알려 드린다', { rel: 2, kn: 2 }, '선생님이 조용히 도와주셔서 일이 잘 해결됐어요.'),
+  c('모른 척하고 내 할 일을 한다', { kn: 3, rel: -4, hap: -2 }, '수업은 잘 들었지만 마음 한구석이 무거웠어요.')
+]),
+E('c_allowance', 0, 'pool', '문구점 앞에서', '용돈을 받아 문구점 앞에 섰어요. 반짝이는 장난감도, 맛있는 간식도 눈에 들어와요.', [
+  c('저금통에 차곡차곡 모은다', { mo: 7, hap: -2 }, '저금통이 조금씩 무거워지는 게 뿌듯했어요.', { sc: { econ: 1 }, tag: ['절약'] }),
+  c('갖고 싶던 장난감을 바로 산다', { hap: 7, mo: -5 }, '신나게 놀았지만 며칠 뒤엔 시들해졌어요.', { tag: ['충동소비'] }),
+  c('가족에게 작은 선물을 사 드린다', { rel: 6, hap: 3, mo: -4 }, '가족들이 활짝 웃으며 고마워했어요.', { sc: { care: 1 }, tag: ['가족시간'] })
+]),
+E('c_game', 0, 'pool', '숙제와 새 게임', '새로 나온 게임이 너무 재미있어요. 그런데 숙제도 남아 있어요.', [
+  c('숙제를 먼저 끝내고 게임을 한다', { kn: 4, hap: 3 }, '할 일을 마치고 하는 게임은 더 즐거웠어요.', { sc: { study: 1 }, tag: ['성실'] }),
+  c('숙제는 내일로 미루고 밤늦게까지 한다', { hap: 7, hp: -5, kn: -3 }, '신나긴 했지만 다음 날 아침이 너무 졸렸어요.', { tag: ['밤샘습관'] }),
+  c('가족과 보드게임을 한다', { rel: 5, hap: 4 }, '웃음소리가 집 안 가득 퍼졌어요.', { tag: ['가족시간'] })
+]),
+E('c_sports', 0, 'pool', '운동장 달리기', '체육 시간, 운동장을 달리고 있어요. 숨이 차고 다리가 무거워요.', [
+  c('끝까지 완주해 본다', { hp: 6, hap: 2 }, '결승선을 지나자 뿌듯함이 밀려왔어요.', { sc: { sport: 1 }, tag: ['운동습관'] }),
+  c('힘들다며 쉬면서 친구와 수다를 떤다', { rel: 4, hp: -2 }, '수다는 즐거웠지만 다리는 더 무거워졌어요.'),
+  c('친구를 응원하며 같이 달린다', { rel: 5, hp: 3, hap: 2 }, '함께 달린 친구들과 하이파이브를 했어요.', { sc: { social: 1 } })
+]),
+E('c_luck', 0, 'pool', '뜻밖의 행운', '동네 가을 축제 추첨에서 우연히 작은 선물에 당첨되었어요!', [
+  c('혼자 신나게 즐긴다', { hap: 8 }, '생각지 못한 행운에 하루 종일 웃음이 났어요.', { src: 'luck' }),
+  c('친구들과 나누어 쓴다', { hap: 5, rel: 6 }, '나눌수록 행운이 더 커지는 것 같았어요.', { src: 'luck', sc: { care: 1 } }),
+  c('가족에게 선물한다', { rel: 6, hap: 3 }, '가족의 환한 얼굴이 가장 큰 선물이었어요.', { src: 'luck', tag: ['가족시간'] })
+]),
+
+/* ===== 청소년기 ===== */
+E('t_mid', 1, 'must', '동아리 활동 선택', '사랑중학교에 들어왔어요. 방과 후 활동으로 어떤 동아리에 들어갈까요?', [
+  c('과학·독서 동아리', { kn: 7, hap: -2 }, '친구들과 실험하고 토론하며 호기심이 쑥쑥 자랐어요.', { sc: { study: 2 }, tag: ['독서'], k: '과학·독서 동아리에서 지식을 쌓았어요' }),
+  c('체육 동아리', { hp: 7, kn: -3 }, '땀 흘린 만큼 몸이 튼튼해졌어요.', { sc: { sport: 2 }, tag: ['운동습관'], k: '체육 동아리에서 몸을 단련했어요' }),
+  c('연극·밴드 동아리', { hap: 6, rel: 3, kn: -3 }, '무대 위에서 박수를 받던 순간이 오래 기억에 남았어요.', { sc: { art: 2 }, k: '연극·밴드 동아리에서 무대에 섰어요' }),
+  c('봉사·학생회', { rel: 5, hp: -2, hap: 1 }, '다른 사람을 돕는 일에서 보람을 느꼈어요.', { sc: { care: 2, social: 1 }, k: '봉사와 학생회에서 사람들을 도왔어요' })
+]),
+E('t_high', 1, 'must', '방향을 정할 때', '정직고등학교에 진학했어요. 앞으로의 길을 위해 어디에 시간을 쏟을까요?', [
+  c('매일 꾸준히 공부 계획을 지킨다', { kn: 8, hap: -4, hp: -3 }, '힘들었지만 실력이 눈에 띄게 늘었어요.', { sc: { study: 2 }, tag: ['성실'], k: '고등학교에서 꾸준히 공부했어요' }),
+  c('친구들과 어울리며 학교생활을 즐긴다', { rel: 7, hap: 4, kn: -3 }, '학교가 추억으로 가득 찬 곳이 되었어요.', { sc: { social: 2 }, k: '친구들과 어울리는 시간을 소중히 했어요' }),
+  c('경제·창업 동아리에 도전한다', { kn: 4, mo: 3, hap: -1 }, '작은 장터를 열고 직접 사고팔며 많이 배웠어요.', { sc: { econ: 2 }, k: '경제 동아리에서 돈의 흐름을 배웠어요' }),
+  c('운동과 건강 관리를 이어 간다', { hp: 6, kn: -2, hap: 1 }, '몸이 가벼워지고 마음도 맑아졌어요.', { sc: { sport: 1 }, tag: ['운동습관'] })
+]),
+E('t_exam', 1, 'pool', '시험 일주일 전', '중요한 시험이 일주일 앞으로 다가왔어요.', [
+  c('밤을 새워 가며 몰아서 공부한다', { kn: 8, hp: -6, hap: -2 }, '점수는 올랐지만 몸이 무척 피곤했어요.', { sc: { study: 1 }, tag: ['밤샘습관'] }),
+  c('계획표를 세워 매일 조금씩 공부한다', { kn: 6, hap: -1 }, '차근차근 준비한 덕분에 마음이 편했어요.', { sc: { study: 1 }, tag: ['성실'] }),
+  c('친구들과 모여 서로 알려 주며 공부한다', { kn: 4, rel: 4, hp: -1 }, '함께한 덕분에 어려운 문제도 풀렸어요.', { sc: { social: 1 } })
+]),
+E('t_conflict', 1, 'pool', '친구와의 다툼', '가장 친한 친구와 사소한 일로 크게 다퉜어요.', [
+  c('먼저 다가가 진심으로 사과한다', { rel: 7, hap: 1 }, '서로 마음을 풀고 더 단단한 사이가 되었어요.', { sc: { social: 1, care: 1 } }),
+  c('시간이 지나길 기다린다', { rel: -2, hap: -1 }, '어색한 날들이 한동안 이어졌어요.'),
+  c('사실이 아닌 말로 변명해서 넘어간다', { rel: -6, hap: 1 }, '그때는 넘어갔지만 마음 한구석이 찜찜했어요.', { tag: ['약속어김'] })
+]),
+E('t_money', 1, 'pool', '부족한 용돈', '용돈이 부족해서 갖고 싶던 것을 사기 어려워요.', [
+  c('주말에 아르바이트를 해 본다', { mo: 8, hp: -3, hap: -1 }, '스스로 번 돈의 소중함을 알게 되었어요.', { sc: { econ: 1 } }),
+  c('계획 없이 있는 용돈을 모두 쓴다', { hap: 6, mo: -3 }, '그 순간은 즐거웠지만 곧 지갑이 텅 비었어요.', { tag: ['충동소비'] }),
+  c('꼭 필요한 것만 사고 나머지는 모은다', { mo: 5, hap: -1 }, '조금씩 모이는 통장을 보니 든든했어요.', { sc: { econ: 1 }, tag: ['절약'] })
+]),
+E('t_health', 1, 'pool', '체력검사 결과', '체력검사에서 달리기 기록이 많이 아쉬워요.', [
+  c('매일 조금씩 운동하는 습관을 들인다', { hp: 8, hap: -1 }, '몇 달 뒤 몸이 가벼워진 걸 느꼈어요.', { sc: { sport: 1 }, tag: ['운동습관'] }),
+  c('귀찮아서 다음으로 미룬다', { hap: 3, hp: -4 }, '당장은 편했지만 몸은 점점 무거워졌어요.'),
+  c('친구와 함께 운동한다', { hp: 5, rel: 4 }, '함께하니 운동이 숙제가 아니라 놀이가 되었어요.', { sc: { social: 1 } })
+]),
+E('t_luck', 1, 'pool', '뜻밖의 만남', '학교에 특별 강연을 하러 온 분이 내 발표를 우연히 듣고 칭찬해 주셨어요.', [
+  c('용기를 내어 궁금한 점을 질문한다', { kn: 8, hap: 3 }, '질문에 친절하게 답해 주셔서 눈이 번쩍 뜨였어요.', { src: 'luck', sc: { study: 1 } }),
+  c('친구들에게도 이야기를 전해 준다', { rel: 6, hap: 4 }, '우연한 행운이 친구들과 함께 나눌수록 커졌어요.', { src: 'luck', sc: { social: 1 } }),
+  c('소중히 마음에 새기고 더 열심히 한다', { kn: 5, hap: 5 }, '짧은 칭찬 한마디가 오래도록 힘이 되었어요.', { src: 'luck', tag: ['성실'] })
+]),
+E('y_luck', 2, 'pool', '길에서 만난 은사님', '출근길에 우연히 오래전 지혜 선생님을 만났어요. 반갑게 인사를 나누었어요.', [
+  c('근처 카페에서 이야기를 나눈다', { rel: 7, hap: 5, mo: -1 }, '선생님의 따뜻한 말씀에 마음이 환해졌어요.', { src: 'luck' }),
+  c('요즘 고민을 털어놓고 조언을 구한다', { kn: 6, hap: 4, rel: 3 }, '선생님의 한마디가 오래 묵은 고민을 풀어 주었어요.', { src: 'luck' }),
+  c('연락처를 주고받고 가끔 안부를 전한다', { rel: 6, hap: 3 }, '오랜 인연이 다시 이어졌어요.', { src: 'luck' })
+]),
+E('m_luck', 3, 'pool', '동네의 작은 행운', '동네 가게의 감사 행사 추첨에서 가족 여행권에 당첨되었어요!', [
+  c('가족과 함께 여행을 다녀온다', { hap: 8, rel: 6, mo: -1 }, '여행지에서 찍은 사진이 오래 남는 추억이 되었어요.', { src: 'luck', tag: ['가족시간'] }),
+  c('친구에게 양보해 선물한다', { rel: 8, hap: 4 }, '나눈 행운이 더 큰 기쁨으로 돌아왔어요.', { src: 'luck', sc: { care: 1 } }),
+  c('나 혼자 푹 쉬러 다녀온다', { hap: 8, hp: 5 }, '오랜만의 쉼이 몸과 마음을 가볍게 해 주었어요.', { src: 'luck' })
+], { w: 2 }),
+E('t_volunteer', 1, 'pool', '마을 봉사 모집', '마을 봉사 활동 모집 공고를 봤어요. 마침 공부할 것도 많은 시기예요.', [
+  c('용기를 내어 참여한다', { rel: 5, hap: 3, hp: -1, kn: -2 }, '어르신들의 미소에서 큰 보람을 느꼈어요.', { sc: { care: 2 }, tag: ['친구돕기'] }),
+  c('공부를 우선해 다음 기회로 미룬다', { kn: 4, rel: -1 }, '공부엔 집중했지만 아쉬움이 조금 남았어요.', { sc: { study: 1 } }),
+  c('친구들을 모아 함께 참여한다', { rel: 7, hap: 2, kn: -3 }, '함께 땀 흘린 친구들과 더 가까워졌어요.', { sc: { care: 1, social: 1 }, tag: ['친구돕기'] })
+]),
+
+/* ===== 청년기 ===== */
+E('y_path', 2, 'must', '인생의 갈림길', '스무 살이 되었어요. 지금까지 보낸 시간이 갈 수 있는 길을 열어 주었어요. 어떤 길로 걸어갈까요?', [], { dyn: 'careers' }),
+
+E('of_intro', 2, 'job', '정직상사 첫 출근', '정직상사에서 첫 출근을 했어요. 모든 게 낯설고 해야 할 일이 가득해요.', [
+  c('먼저 인사하고 선배들에게 배운다', { rel: 5, kn: 4, hap: -1 }, '선배들이 친절하게 일을 알려 주었어요.'),
+  c('맡은 일을 꼼꼼하게 끝까지 해낸다', { kn: 5, mo: 3, hp: -2 }, '믿음직한 신입이라는 말을 들었어요.', { tag: ['성실'] }),
+  c('퇴근 후에는 푹 쉬고 취미를 즐긴다', { hap: 5, hp: 2, mo: -1 }, '일과 쉼의 균형을 천천히 찾아갔어요.')
+], { job: 'office', seq: 1 }),
+E('dr_1', 2, 'job', '믿음대학교 의과대학', '합격 소식을 들었어요! 하지만 앞으로 오랫동안 공부해야 하고, 그동안은 돈을 벌 수 없어요. 생활을 어떻게 꾸려 갈까요?', [
+  c('학비 지원을 받고 아껴 쓰며 공부에 집중한다', { kn: 7, hap: -2, mo: -2 }, '빠듯했지만 공부에 온 힘을 쏟았어요.', { bump: [{ tag: '절약', fx: { mo: 3, hap: 2 }, r: '어릴 때부터 모아 온 습관이 큰 힘이 되었어요.' }], k: '돈을 벌 수 없는 긴 공부의 시간을 견뎠어요' }),
+  c('가족의 도움을 받으며 공부한다', { kn: 6, rel: 3, mo: -3 }, '가족의 응원이 든든한 버팀목이 되었어요.', { tag: ['가족시간'] }),
+  c('공부와 아르바이트를 함께한다', { kn: 5, mo: 2, hp: -5 }, '몸은 힘들었지만 스스로 해냈다는 자신감이 생겼어요.')
+], { job: 'doctor', seq: 1 }),
+E('dr_2', 2, 'job', '병원 실습의 첫날', '사랑병원에서 처음으로 환자를 만났어요. 책에서 배운 것과는 많이 달라요.', [
+  c('환자의 이야기에 귀를 기울인다', { rel: 5, hap: 4, kn: 3, hp: -2 }, '환자가 건넨 "고맙습니다"가 큰 힘이 되었어요.'),
+  c('책으로 더 깊이 공부해서 준비한다', { kn: 8, rel: -2, hap: -2 }, '지식은 쌓였지만 사람의 마음은 책에 다 없었어요.'),
+  c('동기들과 서로 도우며 배운다', { rel: 6, kn: 4, hp: -3 }, '함께 고민하니 어려운 일도 해낼 수 있었어요.')
+], { job: 'doctor', seq: 2 }),
+E('dr_3', 2, 'job', '수련 시절의 밤샘 당직', '의사가 되기 위한 수련이 이어지고 있어요. 월급은 아주 적고 밤샘 당직은 길기만 해요.', [
+  c('밤새 환자 곁을 지킨다', { kn: 6, hp: -8, hap: 2 }, '환자의 열이 내리자 새벽 하늘이 환하게 밝았어요.', { tag: ['밤샘습관'] }),
+  c('동료와 교대하며 틈틈이 쉰다', { hp: 4, rel: 3, kn: 3 }, '서로 돕고 챙기니 수련을 오래 이어갈 수 있었어요.'),
+  c('가족과 통화하며 마음을 달랜다', { rel: 5, hap: 4, kn: 1 }, '짧은 통화가 지친 마음을 따뜻하게 채워 주었어요.', { tag: ['가족시간'] })
+], { job: 'doctor', seq: 3 }),
+E('jl_1', 2, 'job', '취업 준비의 시간', '조금 더 준비하는 시간을 갖기로 했어요. 이력서를 쓰고 면접을 보며 길을 찾아가요.', [
+  c('필요한 공부와 자격을 차근차근 준비한다', { kn: 5, mo: -2, hap: -2 }, '준비한 만큼 자신감이 생겼어요.', { tag: ['성실'] }),
+  c('아르바이트를 하며 일하는 경험을 쌓는다', { mo: 3, kn: 1, hp: -3 }, '일하며 배운 것들이 이력서보다 값졌어요.', { sc: { econ: 1 } }),
+  c('아는 사람들에게 일자리를 물어본다', { rel: 4, hap: 1 }, '주변 사람들이 여러 소식을 전해 주었어요.', { bump: [{ tag: '친구돕기', fx: { rel: 3, hap: 2 }, r: '예전에 도와준 인연이 따뜻하게 돌아왔어요.' }] })
+], { job: 'jobless', seq: 1 }),
+E('jl_2', 2, 'job', '마침내 걸려 온 연락', '여러 번의 도전 끝에 면접 소식이 이어졌어요. 이제 어떤 마음으로 일을 시작할까요?', [
+  c('배운 것을 믿고 당당하게 출근한다', { kn: 3, hap: 3, mo: 2 }, '긴 준비 끝에 정직상사에서 일을 시작했어요.', { setCareer: 'office', tag: ['구직경험'], k: '취업 준비 끝에 일을 시작했어요' }),
+  c('작은 일부터 차근차근 시작한다', { mo: 1, hap: 2, hp: 1 }, '작게 시작했지만 하루하루가 단단해졌어요.', { setCareer: 'office', tag: ['구직경험'], k: '취업 준비 끝에 작게 일을 시작했어요' }),
+  c('잠깐 쉬며 마음을 가다듬은 뒤 출근한다', { hp: 3, hap: 3, mo: -3 }, '충분히 쉰 덕분에 새로운 마음으로 시작할 수 있었어요.', { setCareer: 'office', tag: ['구직경험'], k: '충분히 쉬고 일을 시작했어요' })
+], { job: 'jobless', seq: 2 }),
+
+E('y_home', 2, 'pool', '처음 혼자 사는 집', '처음으로 혼자 살게 되었어요. 집 안이 조용하고 모든 게 내 몫이에요.', [
+  c('장을 보고 직접 요리해 먹는다', { hp: 5, mo: 2, hap: -1 }, '정성껏 차린 밥 한 끼가 하루를 든든하게 했어요.'),
+  c('매일 배달음식으로 편하게 먹는다', { hap: 5, mo: -4, hp: -4 }, '편했지만 통장도 몸도 가벼워지지 않았어요.'),
+  c('친구와 함께 살며 생활을 나눈다', { rel: 5, mo: 1, hap: 1 }, '함께 사는 집은 웃음소리로 따뜻했어요.')
+]),
+E('y_friend', 2, 'pool', '오랜 친구의 소식', '오랜 친구 소망이에게서 연락이 왔어요. 결혼식에 와 달라고 해요. 마침 일도 바쁜 때예요.', [
+  c('일정을 조절해 직접 찾아가 축하한다', { rel: 7, hap: 3, mo: -2 }, '오랜만에 만난 친구들과 밤늦도록 이야기를 나눴어요.', { bump: [{ tag: '친구돕기', fx: { rel: 3, hap: 2 }, r: '어릴 때부터 이어진 우정이라 더욱 반가웠어요.' }] }),
+  c('바빠서 축하 메시지만 보낸다', { rel: -3, mo: 1 }, '마음은 전했지만 아쉬움이 남았어요.'),
+  c('친구들을 모아 모임을 열어 준다', { rel: 6, hap: 2, hp: -2 }, '모임 덕분에 흩어졌던 친구들이 다시 모였어요.', { sc: { social: 1 } })
+]),
+E('y_travel', 2, 'pool', '며칠의 휴식', '일에 쫓기다 보니 몇 달째 쉬지 못했어요. 며칠의 시간이 생겼어요.', [
+  c('짧은 여행을 다녀온다', { hap: 8, mo: -5, hp: 2 }, '새로운 풍경이 마음을 환하게 씻어 주었어요.'),
+  c('일을 더 해서 성과를 낸다', { mo: 6, hap: -4, hp: -3 }, '성과는 쌓였지만 마음은 조금 메말랐어요.'),
+  c('동네 산책과 낮잠으로 쉰다', { hp: 4, hap: 3, mo: -1 }, '작은 쉼이 생각보다 큰 힘이 되었어요.')
+]),
+E('y_money', 2, 'pool', '처음 생긴 큰돈', '처음으로 제법 큰 돈이 생겼어요. 어디에 쓸까요?', [
+  c('꼬박꼬박 저축한다', { mo: 8, hap: -1 }, '통장 잔액이 늘어 갈수록 마음이 든든했어요.', { sc: { econ: 1 }, bump: [{ tag: '절약', fx: { mo: 3 }, r: '오랜 절약 습관 덕에 저축이 더 빨리 불었어요.' }] }),
+  c('나를 위한 큰 소비를 한다', { hap: 6, mo: -7 }, '기분은 좋았지만 계획 없이 쓴 돈이 아쉬웠어요.', { tag: ['충동소비'] }),
+  c('가족에게 선물하고 함께 식사한다', { rel: 6, hap: 2, mo: -4 }, '가족의 웃음이 돈보다 값지게 느껴졌어요.', { tag: ['가족시간'] })
+]),
+E('y_health', 2, 'pool', '건강검진 안내문', '건강검진 안내문이 왔어요. 요즘 몸이 조금 피곤하긴 해요.', [
+  c('검진을 받고 생활 습관을 고친다', { hp: 7, mo: -2, hap: -1 }, '몸 상태를 알고 나니 마음이 한결 놓였어요.', { bump: [{ tag: '밤샘습관', fx: { hp: -3 }, r: '밤늦게까지 깨어 있던 날들이 결과에 드러났어요.' }] }),
+  c('바빠서 다음으로 미룬다', { hap: 2, hp: -3 }, '일은 해냈지만 몸이 보내는 신호는 쌓여 갔어요.'),
+  c('운동을 새로 시작한다', { hp: 5, hap: 1 }, '땀 흘린 만큼 몸이 가벼워졌어요.', { tag: ['운동습관'] })
+]),
+
+/* ===== 중년기 ===== */
+E('of_m1', 3, 'job', '승진이 걸린 프로젝트', '프로젝트 마감이 코앞이에요. 이번 성과가 승진에 큰 영향을 줄 거예요.', [
+  c('야근을 감수하며 끝까지 해낸다', { mo: 9, hp: -6, rel: -3 }, '성과는 인정받았지만 몸은 천근만근이었어요.'),
+  c('일과 쉼의 균형을 지키며 해낸다', { hap: 4, rel: 3, mo: 3 }, '조금 느렸지만 모두가 지치지 않게 마무리했어요.'),
+  c('후배들을 이끌며 함께 해낸다', { rel: 6, mo: 2, hp: -2 }, '팀워크 덕분에 후배들이 크게 성장했어요.')
+], { job: 'office' }),
+E('of_m2', 3, 'job', '새로운 기술의 등장', '회사에 새로운 기술이 도입되어 일하는 방식이 크게 바뀐대요.', [
+  c('퇴근 후 시간을 내어 새 기술을 배운다', { kn: 7, hp: -3, hap: -1 }, '새로운 기술은 큰 무기가 되었어요.', { bump: [{ tag: '성실', fx: { kn: 3 }, r: '꾸준히 배우던 습관이 빛을 발했어요.' }] }),
+  c('동료들과 함께 배우며 서로 가르쳐 준다', { kn: 4, rel: 5 }, '혼자가 아니어서 배우는 시간이 즐거웠어요.'),
+  c('기존 방식을 고수하며 버틴다', { hp: 1, kn: -4, mo: -2 }, '당장은 편했지만 점점 뒤처지는 느낌이 들었어요.')
+], { job: 'office' }),
+E('of_m3', 3, 'job', '동료의 어려움', '같은 팀 동료가 가족 문제로 어려움을 겪고 있어요. 내 일도 만만치 않은데…', [
+  c('내 일을 나누어 맡아 도와준다', { rel: 6, hap: 3, hp: -3 }, '동료의 눈시울이 붉어지며 고맙다고 했어요.', { bump: [{ tag: '친구돕기', fx: { hap: 2 }, r: '누군가를 돕는 일이 익숙해진 만큼 마음도 가벼웠어요.' }] }),
+  c('조용히 응원의 메모를 남긴다', { rel: 3, hap: 1 }, '작은 메모 한 장이 큰 위로가 되었어요.'),
+  c('내 일에 집중한다', { mo: 5, rel: -3 }, '일은 잘 마쳤지만 어쩐지 마음이 무거웠어요.')
+], { job: 'office' }),
+E('dr_m1', 3, 'job', '퇴원하는 날', '사랑병원에서 오래 아프던 환자가 건강을 되찾아 퇴원하는 날이에요.', [
+  c('환자와 가족에게 따뜻한 인사를 건넨다', { hap: 7, rel: 4, hp: -1 }, '"선생님 덕분이에요"라는 말이 가슴을 채웠어요.'),
+  c('다음 환자를 위해 곧장 기록을 정리한다', { kn: 5, mo: 3, hap: 1, rel: -2 }, '바쁜 하루 속에서도 성실히 책임을 다했어요.'),
+  c('동료들과 작은 축하 시간을 갖는다', { rel: 5, hap: 4 }, '병원 복도에 따뜻한 웃음이 퍼졌어요.')
+], { job: 'doctor' }),
+E('dr_m2', 3, 'job', '놓치는 가족과의 약속', '병원 일이 바쁘다 보니 가족과의 약속을 자꾸 놓치고 있어요.', [
+  c('오늘만큼은 일을 미루고 가족과 시간을 보낸다', { rel: 7, hap: 5, mo: -2 }, '가족과 나눈 저녁이 하루의 피로를 씻어 주었어요.', { bump: [{ tag: '가족시간', fx: { hap: 2 }, r: '함께하는 시간이 몸에 밴 사람이라 더 편안했어요.' }] }),
+  c('환자들을 우선으로 돌본다', { mo: 5, kn: 3, rel: -5, hap: -2 }, '보람은 컸지만 집은 점점 조용해졌어요.'),
+  c('근무 시간을 조절해 균형을 맞춘다', { hp: 3, rel: 4, mo: -2 }, '조금 느려도 오래 걷는 길을 택했어요.')
+], { job: 'doctor' }),
+E('dr_m3', 3, 'job', '낙담한 후배', '후배 의사가 실수를 하고 크게 낙담해 있어요.', [
+  c('직접 경험을 들려주며 용기를 준다', { rel: 6, hap: 4, hp: -1 }, '후배가 다시 웃으며 환자 곁으로 돌아갔어요.'),
+  c('기본을 엄격하게 반복해서 가르친다', { kn: 4, rel: -3, mo: 2 }, '엄격했지만 후배는 실력이 쑥쑥 늘었어요.'),
+  c('의료 봉사 활동에 함께 데려간다', { hap: 6, rel: 4, mo: -3, hp: -2 }, '함께한 봉사에서 의사가 된 이유를 다시 떠올렸어요.')
+], { job: 'doctor' }),
+
+E('m_lotto', 3, 'must', '친구가 건네준 선물', '오랜 친구 소망이를 만났어요. 헤어지며 "행운을 나눠 줄게" 하고 복권 한 장을 건네요. 이 작은 선물을 어떻게 할까요?', [
+  c('그 자리에서 바로 확인해 본다', {}, '', { ch: { p: CFG.lottoP,
+    ok: { fx: { mo: 40, hap: 8 }, tag: ['행운의주인공'], r: '믿을 수 없는 일이 벌어졌어요! 복권이 당첨되었어요!', k: '친구가 건넨 복권이 뜻밖의 행운이 되었어요' },
+    ng: { fx: { hap: 3, rel: 2 }, r: '아쉽게도 꽝이었지만 소망이와 웃으며 이야기를 나눴어요.' } } }),
+  c('가족과 함께 확인한다', {}, '', { ch: { p: CFG.lottoP,
+    ok: { fx: { mo: 40, hap: 8, rel: 4 }, tag: ['행운의주인공'], r: '가족과 함께 확인하던 순간 모두가 놀라 소리쳤어요!', k: '친구가 건넨 복권이 뜻밖의 행운이 되었어요' },
+    ng: { fx: { rel: 4, hap: 2 }, r: '꽝이었지만 가족과 함께 기대하던 시간이 즐거웠어요.' } } }),
+  c('소망이와 함께 확인하자고 제안한다', {}, '', { ch: { p: CFG.lottoP,
+    ok: { fx: { mo: 30, rel: 6, hap: 6 }, tag: ['행운의주인공'], r: '둘이 함께 확인하다 당첨 사실을 알고 얼싸안았어요!', k: '친구와 나눈 복권이 뜻밖의 행운이 되었어요' },
+    ng: { fx: { rel: 5, hap: 2 }, r: '꽝이었지만 함께한 시간이 선물이었어요.' } } })
+]),
+E('m_lotto_win', 3, 'special', '갑자기 달라진 일상', '당첨 소식이 어느새 퍼졌는지 연락이 쏟아져요. 반가운 소식도, 부담스러운 부탁도 있어요.', [
+  c('가까운 사람들과 따뜻하게 나눈다', { rel: 6, hap: 5, mo: -8 }, '나눌수록 마음이 더 커진다는 걸 알게 되었어요.', { sc: { care: 1 }, k: '뜻밖의 행운을 가까운 사람들과 나눴어요' }),
+  c('하던 일을 이어 가며 차분히 지낸다', { hap: 2, mo: 2 }, '평범한 하루가 얼마나 소중한지 다시 느꼈어요.', { k: '행운 뒤에도 차분히 일상을 지켰어요' }),
+  c('일을 그만두고 마음껏 쉰다', { hap: 5, hp: 3, rel: -3, kn: -2 }, '자유로웠지만 어딘가 허전한 마음이 들기 시작했어요.', { k: '행운 뒤에 일을 쉬며 지냈어요' })
+]),
+
+E('m_family', 3, 'pool', '자라나는 아이들', '아이들이 부쩍 자라 가족과 보낼 시간이 점점 줄어드는 걸 느껴요.', [
+  c('주말마다 가족과 함께하는 시간을 만든다', { rel: 7, hap: 5, mo: -2 }, '가족사진 속 웃음이 점점 늘어 갔어요.', { tag: ['가족시간'] }),
+  c('일에 집중해 안정된 살림을 만든다', { mo: 7, rel: -4, hap: -1 }, '살림은 넉넉해졌지만 대화는 줄어들었어요.'),
+  c('짬짬이 안부 전화로 마음을 전한다', { rel: 3, hap: 2 }, '짧은 통화가 서로에게 큰 위로가 되었어요.')
+]),
+E('m_trust', 3, 'pool', '오래전 일이 돌아오다', '어릴 적 친구에게 둘러댔던 일이 우연히 다시 떠올랐어요. 그 친구와의 사이가 한동안 멀어져 있었거든요.', [
+  c('진심으로 연락해 사과한다', { rel: 6, hap: 3 }, '오랜 시간 끝에 서로 마음을 풀 수 있었어요.', { rm: ['약속어김'], k: '오래전 일을 용기 내어 사과했어요' }),
+  c('모른 척 지나간다', { rel: -6, hap: -3 }, '마음 한쪽에 풀지 못한 숙제가 남았어요.'),
+  c('편지로 마음을 전한다', { rel: 3, hap: 2 }, '답장은 느렸지만 따뜻한 말이 돌아왔어요.', { rm: ['약속어김'] })
+], { need: ['약속어김'] }),
+E('m_help', 3, 'pool', '그때 그 마음이 돌아오다', '요즘 마음이 많이 지쳐 있는데, 어린 시절 도와줬던 친구 소망이가 먼저 연락을 해 왔어요.', [
+  c('고마운 마음으로 만나 속마음을 털어놓는다', { rel: 6, hap: 6 }, '소망이의 따뜻한 말이 마음을 가득 채워 주었어요.', { src: 'boom' }),
+  c('이번엔 내가 먼저 밥을 산다', { rel: 5, hap: 4, mo: -3 }, '서로를 아끼는 마음이 오래 이어졌어요.', { src: 'boom' }),
+  c('바빠서 다음에 보자고 한다', { hap: -1, rel: -2 }, '다음에 보자는 말이 자꾸 미뤄졌어요.')
+], { need: ['친구돕기'] }),
+E('m_saving', 3, 'pool', '차곡차곡 모은 마음', '집안에 목돈이 필요한 일이 생겼어요. 그런데 오래전부터 꾸준히 모아 둔 돈이 있어요.', [
+  c('모아 둔 돈으로 여유 있게 해결한다', { mo: -3, hap: 6, rel: 2 }, '어릴 때의 작은 습관이 큰 안심이 되어 돌아왔어요.', { src: 'boom' }),
+  c('일부만 쓰고 나머지는 다시 모은다', { mo: 4, hap: 3 }, '든든한 마음으로 더 멀리 내다볼 수 있었어요.', { src: 'boom' }),
+  c('이번 기회에 가족에게 크게 선물한다', { rel: 6, hap: 4, mo: -6 }, '가족의 웃음이 가장 큰 보상이었어요.', { src: 'boom' })
+], { need: ['절약'] }),
+E('m_unexp', 3, 'pool', '목돈이 필요한 날', '갑자기 큰돈이 필요한 일이 생겼는데, 모아 둔 돈이 넉넉하지 않아요.', [
+  c('허리띠를 졸라매며 차근차근 해결한다', { mo: -4, hap: -3, hp: -2 }, '힘들었지만 계획 있게 쓰는 법을 배웠어요.'),
+  c('주변에 도움을 청한다', { rel: -2, mo: -2, hap: -1 }, '도움은 받았지만 미안한 마음이 컸어요.'),
+  c('일을 더 해서 직접 마련한다', { mo: 6, hp: -5, hap: -2 }, '어려웠지만 스스로 해냈어요.')
+], { need: ['충동소비'] }),
+E('m_check_bad', 3, 'pool', '몸이 보내는 신호', '요즘 자주 숨이 차고 피곤해요. 오래전 밤늦게까지 깨어 있던 습관이 떠올랐어요.', [
+  c('병원에 가서 생활을 바로잡는다', { hp: 7, mo: -3, hap: -1 }, '조금 늦었지만 지금이라도 몸을 돌보게 되었어요.'),
+  c('조금 쉬면 괜찮겠지 하며 넘긴다', { hp: -6, hap: 1 }, '몸은 더 큰 신호를 보내기 시작했어요.'),
+  c('가족에게 털어놓고 함께 습관을 바꾼다', { hp: 5, rel: 4 }, '가족과 함께하니 습관을 바꾸는 일이 덜 외로웠어요.')
+], { need: ['밤샘습관'] }),
+E('m_check_good', 3, 'pool', '꾸준함의 선물', '건강검진 결과를 받았어요. 오래 이어 온 운동 습관 덕분에 또래보다 몸이 가볍다고 해요.', [
+  c('더 즐겁게 운동하며 이웃들과 나눈다', { hp: 5, rel: 5, hap: 3 }, '함께 움직이는 이웃이 늘어 동네가 활기차졌어요.', { src: 'boom' }),
+  c('지금처럼 꾸준히 이어 간다', { hp: 6, hap: 2 }, '꾸준함이 가장 든든한 보험이라는 걸 알았어요.', { src: 'boom' }),
+  c('자신감을 얻어 새로운 도전을 시작한다', { hp: 2, hap: 6, kn: 3 }, '몸이 가벼우니 마음도 용감해졌어요.', { src: 'boom' })
+], { need: ['운동습관'] }),
+
+E('x_ill', 3, 'special', '크게 아팠던 날', '몸이 오랜 피로를 이기지 못하고 큰 병이 찾아왔어요. 치료에는 시간과 돈이 필요해요.', [
+  c('모아 둔 재산으로 치료에 집중한다', { hp: 12, mo: -14, hap: -2 }, '치료를 끝까지 받아 건강을 되찾아 갔어요.', { tag: ['큰병'], k: '큰 병을 이겨 내려고 모아 둔 재산을 썼어요', bump: [{ tag: '절약', fx: { mo: 6 }, r: '모아 둔 돈 덕분에 치료비 걱정을 덜 수 있었어요.' }] }),
+  c('가까운 사람들의 도움을 받으며 치료한다', { hp: 9, rel: 2, mo: -6 }, '곁을 지켜 준 사람들이 큰 힘이 되었어요.', { tag: ['큰병'], k: '가까운 사람들의 도움으로 큰 병을 이겨 냈어요', bump: [{ tag: '친구돕기', fx: { rel: 4, hap: 3 }, r: '예전에 건넨 따뜻한 마음이 도움으로 돌아왔어요.' }] }),
+  c('빚을 내서라도 가장 빠른 치료를 받는다', { hp: 11, mo: -20, hap: -3 }, '몸은 빨리 나았지만 마음에는 걱정이 남았어요.', { tag: ['큰병'], k: '큰 병을 이겨 내려고 빚까지 졌어요' })
+]),
+
+/* ===== 노년기 ===== */
+E('of_end', 4, 'job', '일터를 떠나는 날', '정직상사에서의 마지막 날이에요. 동료들이 작은 꽃다발을 건네요.', [
+  c('함께한 사람들에게 고마움을 전한다', { rel: 6, hap: 5 }, '따뜻한 박수 속에 일터를 나섰어요.'),
+  c('후배들에게 일하는 노하우를 남긴다', { kn: 3, rel: 4, hap: 3 }, '내가 배운 것들이 누군가에게 이어졌어요.'),
+  c('조용히 짐을 챙겨 홀가분하게 떠난다', { hap: 4, hp: 2 }, '가벼운 발걸음으로 새로운 하루를 맞았어요.')
+], { job: 'office' }),
+E('dr_end', 4, 'job', '마지막 진료를 마치고', '오랫동안 환자들을 돌봐 온 사랑병원을 떠날 때가 되었어요. 문을 나서자 오래전 퇴원한 환자들이 손을 흔들고 있어요.', [
+  c('한 사람 한 사람 눈을 맞추며 인사한다', { hap: 7, rel: 5 }, '마음이 따뜻한 감사로 가득 찼어요.'),
+  c('후배 의사에게 병원을 부탁한다', { rel: 5, hap: 4, kn: 2 }, '믿음직한 후배가 힘차게 고개를 끄덕였어요.'),
+  c('가족과 함께 천천히 걸어 나간다', { rel: 6, hap: 5 }, '함께 걷는 길이 어느 때보다 편안했어요.')
+], { job: 'doctor' }),
+E('o_look', 4, 'must', '천천히 보내는 날들', '시간이 여유롭게 흘러요. 오늘은 무엇을 하며 보낼까요?', [
+  c('가족, 친구들과 둘러앉아 이야기를 나눈다', { rel: 8, hap: 6 }, '웃음소리가 오래도록 집 안을 채웠어요.', { bump: [{ tag: '가족시간', fx: { hap: 3 }, r: '함께 쌓아 온 시간이 따뜻한 이야기로 돌아왔어요.' }] }),
+  c('좋아하는 취미와 산책으로 하루를 보낸다', { hap: 7, hp: 4, rel: 1 }, '느리지만 충만한 하루가 지나갔어요.'),
+  c('젊은 세대에게 인생 이야기를 들려준다', { rel: 4, hap: 5, kn: 2 }, '내가 걸어온 길이 누군가의 길잡이가 되었어요.')
+]),
+E('o_final', 4, 'must', '노을을 바라보며', '해가 뉘엿뉘엿 저물고 하늘이 붉게 물들어요. 지나온 시간들이 하나씩 떠오릅니다. 마음속으로 어떤 말을 건네고 싶나요?', [
+  c('"고마웠어요" — 함께한 모든 사람들에게', { rel: 3, hap: 4 }, '노을빛이 모든 기억을 따뜻하게 감쌌어요.'),
+  c('"잘 해냈어" — 나 자신에게', { hap: 5 }, '마음속에 잔잔한 미소가 번졌어요.'),
+  c('"이제 편히 쉬어요" — 저무는 노을에게', { hap: 4, hp: 1 }, '노을과 함께 하루가 고요하게 저물었어요.')
+]),
+
+/* ===== 위기 이벤트 (능력치 0 도달 시) ===== */
+E('cr_hp', 2, 'crisis', '몸이 보낸 마지막 신호', '오랫동안 몸을 돌보지 못한 탓에 쓰러져 사랑병원에 입원했어요. 이제는 몸을 되돌리는 일이 가장 중요해요.', [
+  c('치료에 집중하며 충분히 쉰다', { hp: 26, mo: -8, hap: -2 }, '병원의 하얀 천장 아래에서 천천히 회복해 갔어요.', { tag: ['일어선사람'], k: '몸이 무너졌지만 치료받으며 다시 일어섰어요' }),
+  c('생활 습관을 하나씩 고쳐 간다', { hp: 22, hap: -3, kn: 1 }, '작은 습관부터 바꾸니 몸이 조금씩 응답했어요.', { tag: ['일어선사람'], k: '몸이 무너졌지만 습관을 바꿔 다시 일어섰어요' }),
+  c('가까운 사람들에게 도움을 청한다', { hp: 20, rel: -2, mo: -3 }, '곁에 있는 사람들이 큰 힘이 되었어요.', { tag: ['일어선사람'], k: '몸이 무너졌지만 주변의 도움으로 다시 일어섰어요', bump: [{ tag: '친구돕기', fx: { rel: 5 }, r: '예전에 나눈 마음이 따뜻하게 돌아왔어요.' }] })
+], { stat: 'hp' }),
+E('cr_mo', 2, 'crisis', '텅 빈 통장', '통장이 텅 비어 생활이 막막해졌어요. 다시 일어서기 위해 무엇부터 할까요?', [
+  c('허리띠를 졸라매고 아르바이트를 시작한다', { mo: 24, hp: -5, hap: -4 }, '힘들었지만 한 푼 한 푼이 희망이 되었어요.', { tag: ['일어선사람'], k: '재산이 바닥났지만 땀 흘려 다시 일어섰어요' }),
+  c('가진 것을 정리하고 생활을 새로 시작한다', { mo: 20, hap: -3 }, '가벼워진 짐만큼 마음도 정리되었어요.', { tag: ['일어선사람'], k: '재산이 바닥났지만 생활을 정리해 다시 일어섰어요' }),
+  c('주변에 도움을 청하고 차근차근 갚아 간다', { mo: 20, rel: -3 }, '도움을 받은 만큼 더 열심히 살기로 다짐했어요.', { tag: ['일어선사람'], k: '재산이 바닥났지만 도움을 받아 다시 일어섰어요', bump: [{ tag: '절약', fx: { mo: 4 }, r: '몸에 밴 절약 습관이 다시 일어서는 힘이 되었어요.' }] })
+], { stat: 'mo' }),
+E('cr_kn', 2, 'crisis', '막막해진 배움', '배움이 막막하게 느껴져요. 일도 생활도 자꾸 벽에 부딪혀요.', [
+  c('기초부터 차근차근 다시 공부한다', { kn: 24, hap: -3, hp: -2 }, '느리지만 한 걸음씩 길이 보이기 시작했어요.', { tag: ['일어선사람'], k: '막막했지만 기초부터 다시 배워 일어섰어요' }),
+  c('선배와 선생님에게 도움을 청한다', { kn: 20, rel: 2 }, '손을 내밀자 생각보다 많은 사람이 도와주었어요.', { tag: ['일어선사람'], k: '막막했지만 도움을 구해 다시 일어섰어요' }),
+  c('짧게라도 매일 책을 읽는 습관을 만든다', { kn: 18, hap: 1 }, '작은 습관이 쌓여 어느새 달라져 있었어요.', { tag: ['일어선사람', '독서'], k: '막막했지만 독서 습관으로 다시 일어섰어요' })
+], { stat: 'kn' }),
+E('cr_rel', 2, 'crisis', '외로운 시간', '곁에 아무도 없는 것처럼 외로워요. 연락하던 사람들이 하나둘 멀어졌어요.', [
+  c('먼저 용기 내어 연락해 본다', { rel: 24, hap: -2 }, '먼저 내민 손을 따뜻하게 잡아 주었어요.', { tag: ['일어선사람'], k: '외로웠지만 먼저 손을 내밀어 일어섰어요' }),
+  c('동네 모임에 나가 새로운 사람을 만난다', { rel: 20, mo: -3 }, '새로운 얼굴들이 어느새 익숙한 이웃이 되었어요.', { tag: ['일어선사람'], k: '외로웠지만 새로운 사람들을 만나 일어섰어요' }),
+  c('마음을 담은 편지를 쓴다', { rel: 18, hap: 2 }, '진심 어린 편지에 따뜻한 답장이 돌아왔어요.', { tag: ['일어선사람'], k: '외로웠지만 마음을 담은 편지로 일어섰어요' })
+], { stat: 'rel' }),
+E('cr_hap', 2, 'crisis', '지쳐 버린 마음', '마음이 지쳐 아무것도 하고 싶지 않아요. 웃는 일이 낯설게 느껴져요.', [
+  c('아무 걱정 없이 충분히 쉬는 시간을 갖는다', { hap: 24, mo: -5 }, '쉬고 나니 마음에 조금씩 햇살이 들어왔어요.', { tag: ['일어선사람'], k: '마음이 지쳤지만 충분히 쉬며 일어섰어요' }),
+  c('좋아하던 취미를 다시 꺼내 본다', { hap: 22, mo: -3 }, '좋아하던 일이 마음을 다시 깨워 주었어요.', { tag: ['일어선사람'], k: '마음이 지쳤지만 취미로 다시 일어섰어요' }),
+  c('믿을 수 있는 사람에게 속마음을 털어놓는다', { hap: 20, rel: 2 }, '털어놓고 나니 마음이 한결 가벼워졌어요.', { tag: ['일어선사람'], k: '마음이 지쳤지만 속마음을 나누며 일어섰어요' })
+], { stat: 'hap' })
+];
+
+const EV = {};
+EVENTS.forEach(e => { EV[e.id] = e; if (e.type !== 'pool' && !e.img) e.img = e.id; });
+
+/* ---------- 상태 ---------- */
+const has = (S, t) => S.tags.includes(t);
+const merge = (a, b) => { const o = Object.assign({}, a); for (const k in (b || {})) o[k] = (o[k] || 0) + b[k]; return o; };
+const floorOf = S => (S.stage < 2 ? CFG.floorYoung : (S.stage >= 4 ? 1 : 0));
+function clampAll(S) { STATS.forEach(k => { const f = S.stage >= 4 ? (k === 'hp' ? 1 : 0) : floorOf(S); S.st[k] = Math.max(f, Math.min(100, S.st[k])); }); }
+function snap(S, kind) { return { stage: S.stage, kind: kind || 'ev', st: Object.assign({}, S.st) }; }
+function applyFx(S, fx, src) {
+  for (const k in (fx || {})) { S.st[k] += fx[k]; if (fx[k] > 0) S.gain[src || 'effort'] += fx[k]; }
+  clampAll(S);
+}
+
+G.newState = function (name) {
+  const S = {
+    v: 1, name: (name || '나').slice(0, 8), stage: 0, idx: 0, len: PLAN_LEN[0], queue: PLANS[0].slice(), skipPool: 0,
+    st: { hp: 50, kn: 50, mo: 50, hap: 50, rel: 50 }, sc: { study: 0, sport: 0, art: 0, social: 0, econ: 0, care: 0 },
+    tags: [], careerKey: null, startCareer: null, used: {}, hist: [], imp: [], links: [],
+    gain: { effort: 0, luck: 0, boom: 0, born: 0 }, crisis: null, crisisSeen: {}, crisisCount: 0,
+    talent: null, curId: null, curRec: 0, early: false, winShown: false, phase: 'birth', summary: null,
+    reflect: ['', '', '']
+  };
+  if (G.rng() < CFG.talentChance) {
+    const k = STATS[Math.floor(G.rng() * STATS.length)];
+    S.talent = k; S.st[k] += CFG.talentBonus; S.gain.born += CFG.talentBonus;
+  }
+  S.stageStart = Object.assign({}, S.st);
+  S.hist.push(snap(S, 'start'));
+  return S;
+};
+
+G.ageOf = function (S) {
+  const r = STAGES[S.stage].range;
+  const f = S.len > 1 ? Math.min(1, S.idx / (S.len - 1)) : 1;
+  return Math.round(r[0] + (r[1] - r[0]) * f);
+};
+
+function checkCrisis(S) {
+  if (S.stage < 2 || S.crisis) return;
+  if (S.queue.some(q => q.indexOf('c:') === 0)) return;
+  const order = STATS.slice().sort((a, b) => S.st[a] - S.st[b]);
+  for (const k of order) {
+    if (k === 'hp' && S.stage >= 4) continue;   // 노년기 건강 바닥은 위기 대신 '일찍 마무리'로 처리
+    if (S.st[k] <= 0 && !S.crisisSeen[k]) { S.queue.unshift('c:' + k); S.skipPool++; return; }
+  }
+}
+
+function weightedPick(list, w) {
+  let t = 0; const ws = list.map(e => { const x = w(e); t += x; return x; });
+  let r = G.rng() * t;
+  for (let i = 0; i < list.length; i++) { r -= ws[i]; if (r <= 0) return list[i]; }
+  return list[list.length - 1];
+}
+function drawPool(S) {
+  if (S.stage >= 2 && S.stage <= 3 && S.st.hp <= CFG.illHp && !has(S, '큰병') && !S.used.x_ill && G.rng() < CFG.illChance) return EV.x_ill;
+  const cand = EVENTS.filter(e => e.type === 'pool' && e.stage === S.stage && !S.used[e.id] && (!e.need || e.need.every(t => has(S, t))));
+  if (!cand.length) return null;
+  return weightedPick(cand, e => (e.need ? 5 : (e.w || 1)));
+}
+function drawJob(S) {
+  if (!S.careerKey) return null;
+  const cand = EVENTS.filter(e => e.type === 'job' && e.job === S.careerKey && e.stage === S.stage && !S.used[e.id]);
+  if (!cand.length) return null;
+  const seqd = cand.filter(e => e.seq);
+  if (seqd.length) return seqd.sort((a, b) => a.seq - b.seq)[0];
+  return cand[Math.floor(G.rng() * cand.length)];
+}
+
+G.nextEvent = function (S) {
+  if (S.curId) return EV[S.curId];
+  for (;;) {
+    if (!S.queue.length) return null;
+    const q = S.queue.shift();
+    let ev = null;
+    if (q === 'p') { if (S.skipPool > 0) { S.skipPool--; continue; } ev = drawPool(S); }
+    else if (q === 'j') { ev = drawJob(S) || drawPool(S); }
+    else if (q.indexOf('m:') === 0) {
+      const id = q.slice(2);
+      if (id === 'o_look' && S.st.hp <= CFG.earlyEndHp) { S.early = true; continue; }
+      ev = EV[id];
+    } else if (q.indexOf('c:') === 0) ev = EV['cr_' + q.slice(2)];
+    if (!ev) continue;
+    S.used[ev.id] = true; S.curId = ev.id;
+    S.curRec = Math.floor(G.rng() * 2);
+    if (ev.need) S.links.push({ seed: TAGS[ev.need[0]], fruit: ev.title });
+    return ev;
+  }
+};
+
+function careerChoices(S) {
+  const list = [];
+  ['office', 'doctor', 'athlete', 'idol', 'diplomat', 'investor', 'teacher'].forEach(key => {
+    const cr = CAREERS[key];
+    if (cr.ready && cr.req(S)) list.push({ t: cr.pick, fx: cr.fx || {}, r: '새로운 길이 눈앞에 열렸어요.', setCareer: key, k: cr.name + '의 길을 선택했어요' });
+  });
+  list.push({ t: '아직 정하지 못했어요. 조금 더 준비하는 시간을 가져요', fx: { hap: -1 }, r: '서두르지 않고 나에게 맞는 길을 찾아보기로 했어요.', setCareer: 'jobless', k: '바로 정하지 않고 준비하는 시간을 가졌어요' });
+  return list;
+}
+
+G.getChoices = function (S, ev) {
+  const base = ev.dyn === 'careers' ? careerChoices(S) : ev.choices.filter(x => !x.if || x.if(S));
+  const out = base.slice();
+  if (S.crisis && ev.type !== 'crisis' && S.st[S.crisis.stat] < CFG.crisisClear) {
+    const v = REC[S.crisis.stat][S.curRec % 2];
+    out.push({ t: v.t, fx: v.fx, r: v.r, rec: true, stat: S.crisis.stat });
+  }
+  return out;
+};
+
+G.choose = function (S, ev, idx) {
+  const list = G.getChoices(S, ev);
+  const ch = list[idx];
+  const out = { text: ch.r || '', rec: !!ch.rec, choice: ch.t, extra: [] };
+  if (ch.rec) {
+    applyFx(S, ch.fx, 'effort');
+  } else {
+    let src = ch.src || 'effort';
+    let mag = 0; const addMag = fx => { for (const k in (fx || {})) mag += Math.abs(fx[k]); };
+    let kLabel = ch.k || null;
+    applyFx(S, ch.fx, src); addMag(ch.fx);
+    if (ch.ch) {
+      const ok = G.rng() < ch.ch.p;
+      const o = ok ? ch.ch.ok : ch.ch.ng;
+      applyFx(S, o.fx, ok ? 'luck' : 'effort'); addMag(o.fx);
+      out.text = o.r;
+      (o.tag || []).forEach(t => { if (!has(S, t)) S.tags.push(t); });
+      if (ok && o.k) kLabel = o.k; else if (!ok) kLabel = null;
+      out.lucky = ok;
+    }
+    (ch.bump || []).forEach(b => {
+      if (has(S, b.tag)) { applyFx(S, b.fx, 'boom'); addMag(b.fx); out.extra.push(b.r); S.links.push({ seed: TAGS[b.tag], fruit: ev.title }); }
+    });
+    for (const k in (ch.sc || {})) S.sc[k] += ch.sc[k];
+    (ch.tag || []).forEach(t => { if (!has(S, t)) S.tags.push(t); });
+    (ch.rm || []).forEach(t => { S.tags = S.tags.filter(x => x !== t); });
+    if (ch.setCareer) {
+      S.careerKey = ch.setCareer;
+      if (ev.id === 'y_path') {
+        S.startCareer = ch.setCareer;
+        const n = { office: 1, doctor: 3, jobless: 2 }[ch.setCareer] || 1;
+        for (let i = 0; i < n; i++) S.queue.push('j');
+        for (let i = 0; i < 4 - n; i++) S.queue.push('p');
+        S.len = 5;
+      }
+    }
+    if (kLabel) S.imp.push({ stage: S.stage, k: kLabel, mag });
+  }
+  if (ev.type === 'crisis') {
+    S.crisis = { stat: ev.stat, left: 2 }; S.crisisSeen[ev.stat] = true; S.crisisCount++;
+  } else if (S.crisis) {
+    S.crisis.left--;
+    if (S.st[S.crisis.stat] >= CFG.crisisClear || S.crisis.left <= 0) S.crisis = null;
+  }
+  if (has(S, '행운의주인공') && !S.winShown) { S.winShown = true; S.queue.unshift('m:m_lotto_win'); }
+  S.curId = null; S.idx++;
+  S.hist.push(snap(S, 'ev'));
+  checkCrisis(S);
+  return out;
+};
+
+G.endStage = function (S) {
+  const s = S.stage;
+  if (s < 4) {
+    STATS.forEach(k => { if (CFG.drift[k]) { let d = CFG.drift[k][s]; if (k === 'rel' && d < 0 && has(S, '가족시간')) d += CFG.famSoft; S.st[k] += d; } });
+    if (s >= 2) { if (has(S, '운동습관')) S.st.hp += 2; if (has(S, '밤샘습관')) S.st.hp -= 2; STATS.forEach(k => { if (S.st[k] < CFG.neglect.below) S.st[k] += CFG.neglect.d; }); }
+    const key = s === 2 ? S.startCareer : S.careerKey;
+    S.st.mo += ((CFG.income[key] || [0, 0, 0, 0, 0])[s]) || 0;
+    clampAll(S);
+  }
+  S.hist.push(snap(S, 'end'));
+  const bars = STATS.map(k => {
+    const d = S.st[k] - S.stageStart[k];
+    return { k, name: SNAME[k], icon: SICON[k], color: SCOLOR[k], v: S.st[k], arrow: d >= 4 ? '▲' : (d <= -4 ? '▼' : '－'), warn: S.st[k] <= 20 };
+  });
+  const sorted = STATS.slice().sort((a, b) => S.st[a] - S.st[b]);
+  const lo = sorted[0], hi = sorted[sorted.length - 1];
+  let text = HIGH[hi];
+  text += S.st[lo] <= 40 ? ' 하지만 ' + LOW[lo] : ' 전체적으로 고르게 지내고 있어요.';
+  S.summary = { stageName: STAGES[s].name, bars, text, warn: bars.filter(b => b.warn).map(b => b.name) };
+  S.phase = 'summary';
+  return S.summary;
+};
+
+G.beginStage = function (S) {
+  S.stage++; S.stageStart = Object.assign({}, S.st); S.idx = 0; S.len = PLAN_LEN[S.stage];
+  S.queue = PLANS[S.stage].slice(); S.phase = 'play'; S.summary = null;
+  checkCrisis(S);
+};
+
+G.ending = function (S) {
+  const st = S.st, vals = STATS.map(k => st[k]);
+  const mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals), spread = mx - mn;
+  const tot = S.gain.effort + S.gain.luck + S.gain.boom + S.gain.born || 1;
+  const luckRatio = (S.gain.luck + S.gain.born) / tot;
+  const E_ = CFG.end;
+  let key;
+  if (S.crisisCount > 0 && has(S, '일어선사람')) key = 'rise';
+  else if (mn >= E_.balMin && spread <= E_.balSpread) key = 'balanced';
+  else if (S.gain.luck + S.gain.born >= E_.luckAbs) key = 'lucky';
+  else if (spread >= E_.lopSpread || mn < E_.lopMin) key = 'lopsided';
+  else key = 'effort';
+  const info = ENDINGS[key];
+  const cname = S.careerKey && CAREERS[S.careerKey] ? CAREERS[S.careerKey].name : '';
+  const top = S.imp.map((x, i) => Object.assign({ i }, x)).sort((a, b) => b.mag - a.mag).slice(0, 5).sort((a, b) => a.i - b.i);
+  const seen = {}; const links = [];
+  S.links.forEach(l => { const id = l.seed + '>' + l.fruit; if (!seen[id]) { seen[id] = 1; links.push(l); } });
+  return {
+    key, title: info.title, img: info.img, text: info.text, career: cname,
+    sub: cname ? cname + '(으)로 살아온 인생' : '',
+    note: S.early ? '몸은 조금 일찍 쉬어야 했지만, 마음은 노을처럼 따뜻했어요.' : '',
+    choices: top.map(x => ({ stage: STAGES[x.stage].name, k: x.k })),
+    links: links.slice(0, 4), talent: S.talent ? TALENT[S.talent] : null,
+    stats: { mn, mx, spread, luckRatio }
+  };
+};
+
+Object.assign(G, { STATS, SNAME, SICON, SCOLOR, STAGES, TAGS, CAREERS, EVENTS, EV, REC, TALENT, ENDINGS, REFLECT });
+
+if (typeof module === 'object' && module.exports) module.exports = G; else root.LifeGame = G;
+})(typeof window !== 'undefined' ? window : globalThis);
