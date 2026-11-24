@@ -26,8 +26,8 @@ const CFG = {
   talentChance: 0.05, talentBonus: 10,
   floorYoung: 15,            // 20세 이전 능력치 최저 보호
   crisisClear: 30,           // 위기 해제 기준
-  drift: { hp: [0, -3, -5, -7, 0], hap: [-3, -7, -9, -9, 0], rel: [0, -6, -8, -8, 0], kn: [0, 0, -5, -6, 0], mo: [0, 0, -3, -4, 0] },
-  neglect: { below: 40, d: -8 },  // 방치된 능력치는 단계가 끝날 때 더 떨어짐
+  drift: { hp: [0, -2, -3, -4, 0], hap: [-3, -10, -12, -12, 0], rel: [0, -10, -12, -12, 0], kn: [0, 0, -6, -7, 0], mo: [0, 0, -4, -5, 0] },
+  neglect: { below: 45, d: -16, per: { hp: -6 } },  // 45 아래로 방치된 능력치는 단계가 끝날 때 더 떨어짐 (건강은 -6)
   famSoft: 2,
   marrySoft: 3,              // 가정이 있으면 중년기 관계·행복 감소 완화                // '가족시간' 태그가 있으면 관계 감소를 완화
   illHp: 25, illChance: 0.3, // 큰 병 조건/확률
@@ -878,7 +878,7 @@ G.endStage = function (S) {
   if (s < 4) {
     STATS.forEach(k => { if (CFG.drift[k]) { let d = CFG.drift[k][s]; if (k === 'rel' && d < 0 && has(S, '가족시간')) d += CFG.famSoft;
       if (has(S, '결혼') && s >= 3 && d < 0 && (k === 'rel' || k === 'hap')) d += CFG.marrySoft; S.st[k] += d; } });
-    if (s >= 2) { if (has(S, '운동습관')) S.st.hp += 2; if (has(S, '밤샘습관')) S.st.hp -= 2; STATS.forEach(k => { if (S.st[k] < CFG.neglect.below) S.st[k] += CFG.neglect.d; }); }
+    if (s >= 2) { if (has(S, '운동습관')) S.st.hp += 2; if (has(S, '밤샘습관')) S.st.hp -= 2; STATS.forEach(k => { if (S.st[k] < CFG.neglect.below) S.st[k] += (CFG.neglect.per && CFG.neglect.per[k]) || CFG.neglect.d; }); }
     const key = s === 2 ? S.startCareer : S.careerKey;
     S.st.mo += ((CFG.income[key] || [0, 0, 0, 0, 0])[s]) || 0;
     clampAll(S);
