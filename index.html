@@ -3,10 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>인생 한 판</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<title>인생 게임 - 나의 선택이 나의 인생이 된다</title>
+<link href="fonts/fonts.css" rel="stylesheet">
 <style>
 :root{
   --ink:#1F1B3D;--ink2:#4A4570;--cream:#FFF9EE;
@@ -14,7 +12,7 @@
   --teal:#16C08C;--teald:#0B8A63;--blue:#3E8BFF;--purple:#8B5CF6;--purpled:#5B32C4;
   --shell1:#5B45D6;--shell2:#3A2A9E;
   --game:"Jua","Gowun Dodum","Malgun Gothic",sans-serif;
-  --body:"Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --body:"Gamja Flower","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;overflow:hidden}
@@ -113,7 +111,8 @@ body.compact .grip{display:none}
 
 /* HUD */
 .hud{display:flex;align-items:center;gap:12px;background:var(--ink);color:#fff;border-radius:16px;padding:6px 14px 6px 6px;height:66px;flex:none;box-shadow:0 4px 0 rgba(0,0,0,.25)}
-.ava{width:50px;height:50px;border-radius:50%;background:var(--yellow);border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:26px;flex:none}
+.ava img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
+.ava{overflow:hidden;width:50px;height:50px;border-radius:50%;background:var(--yellow);border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:26px;flex:none}
 .who{width:150px;flex:none;min-width:0}
 .who .nm{font-family:var(--game);font-size:20px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .who .ag{font-size:13px;opacity:.85;white-space:nowrap}
@@ -219,6 +218,38 @@ textarea{width:100%;height:56px;resize:none;border:3px solid var(--ink);border-r
 textarea:focus{box-shadow:0 0 0 4px var(--yellow)}
 .cnt{font-size:11px;color:var(--ink2);text-align:right;line-height:1.2}
 
+
+/* 게임 방법 */
+.howbtn{font-family:var(--game);font-size:14px;border:2.5px solid var(--ink);border-radius:99px;background:#FFF4C7;color:var(--ink);padding:2px 12px;cursor:pointer;box-shadow:0 3px 0 var(--ink)}
+.howbtn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.howv{width:44%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.howstep{font-family:var(--game);color:#fff;font-size:16px;letter-spacing:2px;opacity:.9}
+.howttl{font-family:var(--game);font-size:40px;line-height:1.15;text-align:center}
+.vbox{background:rgba(31,27,61,.88);border-radius:18px;padding:14px 16px;color:#fff;width:100%;box-shadow:0 5px 0 rgba(0,0,0,.25)}
+.vrow{display:flex;align-items:flex-end;justify-content:center;gap:10px;height:110px}
+.vbar{width:34px;border-radius:8px 8px 4px 4px;border:2.5px solid #fff;position:relative}
+.vbar span{position:absolute;bottom:-26px;left:50%;transform:translateX(-50%);font-size:18px}
+.vlbl{text-align:center;font-family:var(--game);font-size:15px;margin-top:30px}
+.vsplit{display:flex;gap:12px;width:100%}.vsplit .vbox{flex:1;padding:12px 8px}
+.vsplit .vrow{height:80px;gap:6px}.vsplit .vbar{width:20px;border-width:2px}.vsplit .vbar span{font-size:13px;bottom:-22px}
+.howlist{margin:0;padding:0;list-style:none}
+.howlist li{display:flex;gap:10px;align-items:flex-start;margin:0 0 10px;font-size:15.5px;line-height:1.5}
+.howlist li b{font-family:var(--game);font-weight:400;font-size:17px}
+.howlist .i{flex:none;width:30px;height:30px;border-radius:50%;background:var(--yellow);border:2.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:15px}
+.ribs{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.rib{font-family:var(--game);font-size:15px;padding:3px 12px;border:2.5px solid #fff;border-radius:99px;color:#fff;white-space:nowrap}
+.flow{display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--game);font-size:15px;text-align:center}
+.flow .fc{background:#fff;color:var(--ink);border-radius:12px;padding:6px 10px;border:2.5px solid var(--ink);white-space:nowrap}
+.flow.stg{gap:4px;font-size:13px}.flow.stg .fc{padding:5px 6px;line-height:1.3}
+.dots{display:flex;gap:8px;justify-content:center;margin-top:12px}
+.dots i{width:11px;height:11px;border-radius:50%;background:#D9D4EC;border:2px solid var(--ink)}
+.dots i.on{background:var(--yellow);transform:scale(1.25)}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center;font-size:15px}
+.key{font-family:var(--game);background:#fff;color:var(--ink);border:2.5px solid var(--ink);border-radius:10px;padding:2px 10px;text-align:center;white-space:nowrap}
+.endi{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:4px}
+.endi div{background:#fff;color:var(--ink);border-radius:10px;padding:6px 2px;text-align:center;font-size:11.5px;line-height:1.25}
+.endi div b{display:block;font-size:22px;font-weight:400}
+
 /* 결과 카드 (캡처용) */
 .rcard{background:var(--cream);border:4px solid var(--ink);border-radius:22px;width:100%;overflow:hidden}
 .rhead{text-align:center;color:#fff;padding:16px 14px 14px;background:linear-gradient(135deg,#6A4BE0,#E0559B)}
@@ -248,11 +279,37 @@ canvas.graph{width:100%;height:auto;display:block}
 @keyframes turn{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
 #rotate button{font-family:var(--game);font-size:16px;margin-top:10px;background:none;color:#B9B2F0;border:2px solid #5A5590;border-radius:12px;padding:6px 14px}
 body.portrait #rotate{display:flex}
+
+/* 본문 글꼴(감자꽃)은 작고 가늘게 보여서 크기를 키우고 살짝 두껍게 */
+body{-webkit-text-stroke:.25px currentColor}
+.etext{font-size:19px;line-height:1.45}
+.choice{font-size:19.5px;line-height:1.35}
+.choices.many .choice{font-size:16.5px}
+.choice .jd{font-size:15px}
+.who .ag{font-size:15px}
+.sub{font-size:17px}
+.bubble{font-size:21px}
+.picked-card .txt{font-size:20px}
+.boom{font-size:17px}
+.comment,.gift{font-size:17.5px}
+.warnmsg{font-size:16px}
+.howlist li{font-size:17.5px}
+.rule{font-size:14.5px}
+.dexi{font-size:13px}
+.rtext,.ra{font-size:17px}.rlist li{font-size:16px}
+textarea{font-size:17px}
+.nick,.btn,.choice .k,.etitle,h1,h2,h3{-webkit-text-stroke:0}
+
+.tart{position:relative;align-self:stretch;margin:-12px 0 -14px -16px;width:52%}
+.tart .art{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 4px 0 rgba(31,27,61,.25))}
+.tart .tlogo{position:absolute;left:22px;top:26px;text-align:left}
+.tart .logo{font-size:64px;margin:0 0 8px}
+.tart .press{position:absolute;right:10px;bottom:26px;margin:0;font-size:15px}
 </style>
 </head>
 <body>
 <canvas id="fx"></canvas>
-<div id="rotate"><div class="ph">📱</div><div>기기를 <b style="color:#FFC83D">가로</b>로 돌려 주세요</div><div style="font-size:15px;opacity:.7">인생 한 판은 가로 화면용 게임이에요</div><button onclick="window.rotateSkip=true;fit()">그냥 할래요</button></div>
+<div id="rotate"><div class="ph">📱</div><div>기기를 <b style="color:#FFC83D">가로</b>로 돌려 주세요</div><div style="font-size:15px;opacity:.7">인생 게임은 가로 화면용 게임이에요</div><button onclick="window.rotateSkip=true;fit()">그냥 할래요</button></div>
 
 <div id="console">
   <div class="grip">
@@ -261,11 +318,11 @@ body.portrait #rotate{display:flex}
   </div>
   <div class="bezel">
     <div class="lcd title" id="lcd"><div id="app"></div></div>
-    <div class="brandrow"><span class="led"><i></i>POWER</span><b>LIFE <span>GAME</span></b><span style="font-size:12px;letter-spacing:1px">인생 한 판</span></div>
+    <div class="brandrow"><span class="led"><i></i>POWER</span><b>LIFE <span>GAME</span></b><span style="font-size:12px;letter-spacing:1px">인생 게임</span></div>
   </div>
   <div class="grip">
-    <div class="abtns"><button class="ab a" onclick="pad('a')">A</button><button class="ab b" onclick="toggleSnd()">B</button><span class="ablbl" style="right:13px;top:68px">확인</span><span class="ablbl" style="left:4px;bottom:-20px" id="blbl">소리 켬</span></div>
-    <div class="pills"><div class="pill"><button onclick="toggleSnd()"></button>SOUND</div><div class="pill"><button onclick="restart()"></button>START</div></div>
+    <div class="abtns"><button class="ab a" onclick="pad('a')">A</button><button class="ab b" onclick="openHelp()">B</button><span class="ablbl" style="right:13px;top:68px">확인</span><span class="ablbl" style="left:2px;bottom:-20px">게임 방법</span></div>
+    <div class="pills"><div class="pill" onclick="toggleSnd()" style="cursor:pointer"><button></button><span id="sndlbl">SOUND ON</span></div><div class="pill"><button onclick="restart()"></button>START</div></div>
   </div>
 </div>
 <div id="shot"></div>
@@ -277,7 +334,6 @@ const G = window.LifeGame;
 if(!G){document.body.innerHTML='<div style="padding:24px;font:16px sans-serif;line-height:1.7;background:#fff">⚠ game.js 파일을 불러오지 못했어요.<br>index.html과 <b>같은 폴더</b>에 game.js(소문자)가 올라가 있는지 확인해 주세요.</div>';throw new Error('game.js not loaded');}
 const SAVE_KEY = 'lifegame_save_v1';
 const DEX_KEY = 'lifegame_endings_v1';
-const SND_KEY = 'lifegame_sound_v1';
 const SHOW_PLACEHOLDER = false;  // 그림 파일(img/이름.jpg)이 없을 때 '그림 자리'를 보여줄지 (완성 후 false)
 const STAGE_ICON = ['🎒', '📚', '🚀', '🏡', '🌅'];
 const AVATAR = { m: ['👦', '👦', '👨', '👨‍💼', '👴'], f: ['👧', '👧', '👩', '👩‍💼', '👵'], '': ['🧒', '🧑‍🎓', '🧑', '🧑‍💼', '🧓'] };
@@ -304,7 +360,7 @@ function loadSave() { try { const j = localStorage.getItem(SAVE_KEY); return j ?
 function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
 function getDex() { try { return JSON.parse(localStorage.getItem(DEX_KEY) || '[]'); } catch (e) { return []; } }
 function addDex(k) { const d = getDex(); if (d.indexOf(k) >= 0) return false; d.push(k); try { localStorage.setItem(DEX_KEY, JSON.stringify(d)); } catch (e) {} return true; }
-function view(html) { $('app').innerHTML = html; sel = -1; }
+function view(html) { $('app').innerHTML = html; sel = -1; HOW.open = false; }
 function theme(c) { $('lcd').className = 'lcd ' + c + (SHOW_PLACEHOLDER ? '' : ' noph'); }
 /* 그림: img/이름_m.jpg(남) 또는 img/이름_f.jpg(여)를 먼저 찾고, 없으면 img/이름.jpg(공용)를 씀 */
 function gsuf() { return S && S.gender ? '_' + S.gender : ''; }
@@ -317,31 +373,50 @@ function img(name) {
   return '<div class="img"><img src="img/' + name + gsuf() + '.jpg" data-n="' + name + '" alt="" onerror="imgFail(this)"><span class="phl">그림 자리<br>' + name + gsuf() + '</span></div>';
 }
 
-/* ---------- 효과음 ---------- */
+/* ---------- 소리: 작고 짧은 효과음 + 배경음악(audio/bgm.mp3가 있을 때만) ---------- */
+const SND_KEY = 'lifegame_sound_v2';
+const SFX_VOL = 0.05;      // 효과음 크기 (0~1)
+const BGM_VOL = 0.12;      // 배경음악 크기 (0~1) — 잔잔하게 깔리도록 작게
 let AC = null, soundOn = (function () { try { return localStorage.getItem(SND_KEY) !== 'off'; } catch (e) { return true; } })();
-function tone(f, d, type, delay, vol) {
+function tone(f, d, delay, vol) {
   if (!soundOn) return;
   try {
     AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
     const t = AC.currentTime + (delay || 0), o = AC.createOscillator(), g = AC.createGain();
-    o.type = type || 'triangle'; o.frequency.setValueAtTime(f, t);
-    g.gain.setValueAtTime(vol || 0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + d);
-    o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + d);
+    o.type = 'sine'; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime((vol || 1) * SFX_VOL, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + d + 0.02);
   } catch (e) {}
 }
 const SFX = {
-  click: () => tone(660, .08, 'square', 0, .05),
-  move: () => tone(440, .05, 'square', 0, .04),
-  card: () => { tone(330, .08, 'triangle'); tone(495, .1, 'triangle', .06); },
-  pick: () => { tone(523, .09); tone(784, .14, 'triangle', .07); },
-  boom: () => [392, 523, 659, 784].forEach((f, i) => tone(f, .16, 'sine', i * .07, .1)),
-  clear: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, .22, 'triangle', i * .11, .12)),
-  win: () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, .2, 'square', i * .09, .06)),
-  crisis: () => { tone(220, .25, 'sawtooth', 0, .05); tone(196, .35, 'sawtooth', .2, .05); },
-  end: () => [392, 494, 587, 784, 988].forEach((f, i) => tone(f, .45, 'sine', i * .18, .1))
+  click: () => tone(880, .06, 0, .6),
+  move: () => tone(660, .04, 0, .4),
+  card: () => tone(523, .08, 0, .5),
+  pick: () => { tone(659, .07); tone(988, .1, .06); },
+  boom: () => { tone(784, .08); tone(1175, .12, .07); },
+  clear: () => [523, 659, 784].forEach((f, i) => tone(f, .14, i * .09)),
+  win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, .16, i * .08)),
+  crisis: () => { tone(392, .14); tone(330, .2, .12); },
+  end: () => [392, 523, 659].forEach((f, i) => tone(f, .3, i * .15, .8))
 };
-function sndLabel() { $('blbl').textContent = soundOn ? '소리 켬' : '소리 끔'; }
-function toggleSnd() { soundOn = !soundOn; try { localStorage.setItem(SND_KEY, soundOn ? 'on' : 'off'); } catch (e) {} sndLabel(); if (soundOn) SFX.click(); }
+/* 배경음악: bgm1 → bgm2 → bgm1 … 번갈아 재생, 작게 깔리도록 */
+const BGM_FILES = ['audio/bgm1.mp3', 'audio/bgm2.mp3'];
+let bgmIdx = 0, bgmStarted = false;
+const BGM = new Audio(); BGM.preload = 'auto';
+BGM.addEventListener('ended', () => { bgmIdx = (bgmIdx + 1) % BGM_FILES.length; BGM.src = BGM_FILES[bgmIdx]; if (soundOn) BGM.play().catch(() => {}); });
+BGM.addEventListener('error', () => { if (bgmIdx + 1 < BGM_FILES.length) { bgmIdx++; BGM.src = BGM_FILES[bgmIdx]; BGM.play().catch(() => {}); } });
+function bgmFadeIn() { BGM.volume = 0; let v = 0; const t = setInterval(() => { v = Math.min(BGM_VOL, v + BGM_VOL / 20); BGM.volume = v; if (v >= BGM_VOL) clearInterval(t); }, 100); }
+function bgmSync() {
+  if (!soundOn) { BGM.pause(); return; }
+  if (!bgmStarted) { bgmStarted = true; BGM.src = BGM_FILES[bgmIdx]; bgmFadeIn(); }
+  BGM.play().catch(() => { bgmStarted = false; });
+}
+document.addEventListener('pointerdown', bgmSync, { once: true });
+document.addEventListener('keydown', bgmSync, { once: true });
+function sndLabel() { const el = $('sndlbl'); if (el) el.textContent = soundOn ? 'SOUND ON' : 'SOUND OFF'; }
+function toggleSnd() { soundOn = !soundOn; try { localStorage.setItem(SND_KEY, soundOn ? 'on' : 'off'); } catch (e) {} sndLabel(); bgmSync(); SFX.click(); }
 sndLabel();
 
 /* ---------- 색종이 ---------- */
@@ -364,6 +439,7 @@ function setSel(i) {
   cs.forEach((c, k) => c.classList.toggle('sel', k === sel)); SFX.move();
 }
 function pad(k) {
+  if (HOW.open && (k === 'up' || k === 'down')) { howGo(k === 'up' ? -1 : 1); return; }
   const cs = document.querySelectorAll('.choice:not([disabled])');
   if (k === 'up' || k === 'down') {
     if (cs.length) setSel(sel < 0 ? (k === 'down' ? 0 : cs.length - 1) : sel + (k === 'down' ? 1 : -1));
@@ -379,6 +455,8 @@ document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') { if (e.key === 'Enter' && e.target.id === 'nick') startNew(); return; }
   const n = parseInt(e.key, 10);
   if (n >= 1 && n <= 9) { const b = document.querySelectorAll('.choice')[n - 1]; if (b && !b.disabled) b.click(); return; }
+  if (HOW.open && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); howGo(e.key === 'ArrowLeft' ? -1 : 1); return; }
+  if (e.key === 'b' || e.key === 'B' || e.key === 'Escape') { e.preventDefault(); openHelp(); return; }
   if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); pad('up'); }
   else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); pad('down'); }
   else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pad('a'); }
@@ -401,8 +479,61 @@ function hud(showTurns, after) {
     for (let i = 0; i < S.len; i++) turns += '<div class="sq ' + (i < cur ? 'done' : (i === cur ? 'on' : '')) + '">' + (i < cur || (after && i === cur) ? '✔' : (i === cur ? '?' : '')) + '</div>';
     turns = '<div class="turns">' + turns + '</div>';
   }
-  return '<div class="hud"><div class="ava">' + (AVATAR[S.gender || ''] || AVATAR[''])[S.stage] + '</div><div class="who"><div class="nm">' + esc(S.name) + '</div><div class="ag">' + G.ageOf(S) + '세' + (jn ? ' · ' + esc(jn) : '') + '</div></div>' + road + turns + '</div>';
+  return '<div class="hud"><div class="ava">' + (S.gender ? '<img src="img/ava_' + S.gender + S.stage + '.webp" alt="" onerror="this.replaceWith(document.createTextNode(\'' + AVATAR[S.gender][S.stage] + '\'))">' : AVATAR[''][S.stage]) + '</div><div class="who"><div class="nm">' + esc(S.name) + '</div><div class="ag">' + G.ageOf(S) + '세' + (jn ? ' · ' + esc(jn) : '') + '</div></div>' + road + turns + '</div>';
 }
+
+
+/* ---------- 게임 방법 ---------- */
+const HOW_KEY = 'lifegame_howto_v1';
+const HOW = { open: false, page: 0, then: null };
+function howSeen() { try { return localStorage.getItem(HOW_KEY) === '1'; } catch (e) { return false; } }
+const bars = (vals, cls) => '<div class="vrow">' + G.STATS.map((k, i) => '<div class="vbar" style="height:' + vals[i] + '%;background:' + G.SCOLOR[k] + '"><span>' + G.SICON[k] + '</span></div>').join('') + '</div>';
+const HOW_PAGES = [
+  { t: '게임의 목표', v: () => '<div class="vsplit"><div class="vbox">' + bars([62, 58, 55, 66, 60]) + '<div class="vlbl">😊 고르게 지킨 삶</div></div><div class="vbox">' + bars([18, 30, 100, 40, 22]) + '<div class="vlbl">😥 한쪽만 챙긴 삶</div></div></div>',
+    b: [['💪📘💰😊🤝', '건강·지식·재산·행복·관계', '다섯 가지 능력치를 가지고 태어나요.'],
+        ['⚖️', '고르게 지키기', '어느 하나도 바닥나지 않게 지키는 것이 목표예요.'],
+        ['💰', '돈이 전부는 아니에요', '재산만 많고 다른 것을 놓치면 좋은 삶이라고 하기 어려워요.']] },
+  { t: '인생은 이렇게 흘러가요', v: () => '<div class="vbox"><div class="flow stg">' + STAGE_ICON.map((ic, i) => '<span class="fc">' + ic + '<br>' + G.STAGES[i].name + '</span>').join('▶') + '</div></div>' +
+      '<div class="vbox"><div class="ribs"><span class="rib" style="background:var(--teal)">🎴 일상</span><span class="rib" style="background:var(--purple)">⭐ 운명</span><span class="rib" style="background:var(--blue)">💼 직업</span><span class="rib" style="background:var(--yellow);color:var(--ink)">✨ 특별</span><span class="rib" style="background:var(--coral)">🔥 위기</span><span class="rib" style="background:var(--yellow);color:var(--ink)">🏆 도전</span></div></div>',
+    b: [['🎲', '다섯 단계', '아동기부터 노년기까지, 단계마다 몇 칸씩 카드를 만나요.'],
+        ['🃏', '카드마다 선택', '카드를 읽고 마음에 드는 선택지를 골라요. 정답은 없어요.'],
+        ['💼', '직업', '청년기가 되면 학창 시절에 걸어온 길에 따라 고를 수 있는 직업이 달라져요.']] },
+  { t: '숨겨진 능력치', v: () => '<div class="vbox"><div class="flow"><span class="fc">🃏 선택</span>▶<span class="fc">❓ 숫자는 비밀</span>▶<span class="fc">⭐ 단계 끝에 공개</span></div></div>' +
+      '<div class="vbox"><div class="flow"><span class="fc">🧒 어릴 때 선택</span>▶<span class="fc" style="background:#EBDDFF">💫 부메랑</span>▶<span class="fc">🧑 어른의 결과</span></div></div>',
+    b: [['❓', '바로 보이지 않아요', '선택할 때는 능력치가 얼마나 변했는지 알 수 없어요. 단계가 끝날 때 막대로 보여 줘요.'],
+        ['💫', '부메랑', '예전의 선택이 나중에 다시 돌아와 새로운 일을 만들어요.'],
+        ['🔥', '위기와 회복', '오래 내버려 둔 능력치는 점점 떨어져요. 바닥나면 위기 카드가 오고, 🌱 마음의 소리로 다시 일어설 수 있어요.']] },
+  { t: '조작과 엔딩', v: () => '<div class="vbox"><div class="keys"><span class="key">✚ 십자키 · ▲▼</span><span>선택지 고르기</span><span class="key">Ⓐ · Enter</span><span>결정, 다음으로</span><span class="key">1 2 3 4</span><span>숫자로 바로 고르기</span><span class="key">Ⓑ</span><span>게임 방법 다시 보기</span></div></div>' +
+      '<div class="vbox"><div class="endi">' + END_ORDER.map(k => '<div><b>' + END_ICON[k] + '</b>' + esc(G.ENDINGS[k].title) + '</div>').join('') + '</div></div>',
+    b: [['👆', '화면을 눌러도 돼요', '버튼과 선택지를 직접 눌러도 똑같이 움직여요.'],
+        ['🌅', '엔딩 5가지', '살아온 모습에 따라 엔딩이 달라지고, 처음 본 엔딩은 도감에 모여요.'],
+        ['📷', '결과 카드', '마지막에 내 인생을 돌아보는 글을 쓰고, 결과 카드를 이미지로 저장해요.']] }
+];
+function showHowTo(page, then) {
+  if (then) HOW.then = then;
+  HOW.page = Math.max(0, Math.min(HOW_PAGES.length - 1, page));
+  const P = HOW_PAGES[HOW.page], last = HOW.page === HOW_PAGES.length - 1;
+  theme('st' + Math.min(HOW.page + 1, 4));
+  view('<div class="main" style="margin:0"><div class="howv deal"><div class="howstep">HOW TO PLAY · ' + (HOW.page + 1) + ' / ' + HOW_PAGES.length + '</div><div class="howttl outline">' + P.t + '</div>' + P.v() + '</div>' +
+    '<div class="panel deal" style="flex:1;align-self:center"><ul class="howlist">' +
+    P.b.map(x => '<li><span class="i">' + Array.from(x[0])[0] + '</span><span><b>' + x[1] + '</b><br>' + x[2] + '</span></li>').join('') + '</ul>' +
+    '<div class="btnrow">' + (HOW.page > 0 ? '<button class="btn small" onclick="howGo(-1)">◀ 이전</button>' : '<button class="btn small" onclick="howDone()">건너뛰기</button>') +
+    '<button class="btn go small" onclick="' + (last ? 'howDone()' : 'howGo(1)') + '">' + (last ? (HOW.then === showBirth ? '게임 시작!' : '돌아가기') : '다음') + '</button></div>' +
+    '<div class="dots">' + HOW_PAGES.map((_, i) => '<i class="' + (i === HOW.page ? 'on' : '') + '"></i>').join('') + '</div></div></div>');
+  HOW.open = true;
+  SFX.card();
+}
+function openHelp() {
+  if (HOW.open) return howDone();
+  const back = { html: $('app').innerHTML, cls: $('lcd').className };
+  showHowTo(0, () => {
+    if (S && S.phase === 'reflect') return showReflect();
+    $('app').innerHTML = back.html; $('lcd').className = back.cls;
+    document.querySelectorAll('#app canvas.graph').forEach(drawGraph);
+  });
+}
+function howGo(d) { const n = HOW.page + d; if (n < 0) return; if (n >= HOW_PAGES.length) return howDone(); showHowTo(n); }
+function howDone() { try { localStorage.setItem(HOW_KEY, '1'); } catch (e) {} HOW.open = false; SFX.click(); (HOW.then || showStart)(); }
 
 /* ---------- 타이틀 ---------- */
 function showStart() {
@@ -410,13 +541,13 @@ function showStart() {
   const sv = loadSave(), dex = getDex();
   const resumeBtn = sv && sv.phase !== 'card' ? '<button class="btn small" onclick="resume()">💾 이어하기 · ' + esc(sv.name) + ' (' + G.STAGES[sv.stage].name + ')</button>' : '';
   const dexHtml = END_ORDER.map(k => { const on = dex.indexOf(k) >= 0; return '<div class="dexi ' + (on ? '' : 'lock') + '"><span class="e">' + (on ? END_ICON[k] : '❔') + '</span>' + (on ? esc(G.ENDINGS[k].title) : '???') + '</div>'; }).join('');
-  view('<div class="main" style="margin:0;align-items:center"><div class="tleft"><div class="dice">🎲</div><div class="logo outline">인생 <span>한 판</span></div><div class="tagline">선택이 쌓여 나의 인생이 된다!</div><div class="press">▶ PRESS START ◀</div></div>' +
+  view('<div class="main" style="margin:0;align-items:center"><div class="tleft tart"><img class="art" src="img/title_art.webp" alt="" onerror="this.remove()"><div class="tlogo"><div class="logo outline">인생 <span>게임</span></div><div class="tagline">나의 선택이 나의 인생이 된다</div></div><div class="press">▶ PRESS START ◀</div></div>' +
     '<div class="panel deal" style="flex:1">' +
     '<div class="rules"><div class="rule"><b>5단계</b>아동기→노년기</div><div class="rule"><b>💪📘💰😊🤝</b>고르게 지키기</div><div class="rule"><b>💫</b>선택이 돌아와요</div></div>' +
     '<input class="nick" type="text" id="nick" maxlength="8" placeholder="플레이어 이름 (8자)">' +
     '<div class="gsel"><button class="gbtn" id="g_m" onclick="pickG(\'m\')">👦 남학생</button><button class="gbtn" id="g_f" onclick="pickG(\'f\')">👧 여학생</button></div>' +
     '<button class="btn go" onclick="startNew()">게임 시작</button>' + resumeBtn +
-    '<div class="sectionT"><span>📖 엔딩 도감</span><span>' + dex.length + ' / 5</span></div><div class="dex">' + dexHtml + '</div></div></div>');
+    '<div class="sectionT"><span>📖 엔딩 도감 <small style="color:var(--ink2)">' + dex.length + ' / 5</small></span><button class="howbtn" onclick="showHowTo(0, showStart)">❓ 게임 방법</button></div><div class="dex">' + dexHtml + '</div></div></div>');
 }
 let pickedG = '';
 function pickG(g) { pickedG = g; SFX.move(); ['m', 'f'].forEach(x => $('g_' + x).classList.toggle('on', x === g)); }
@@ -425,7 +556,8 @@ function startNew() {
   if (!pickedG) { const gs = document.querySelector('.gsel'); gs.classList.remove('need'); void gs.offsetWidth; gs.classList.add('need'); SFX.crisis(); return; }
   SFX.pick();
   const name = (el.value || '').trim() || '나';
-  S = G.newState(name); S.gender = pickedG; S.phase = 'birth'; save(); showBirth();
+  S = G.newState(name); S.gender = pickedG; S.phase = 'birth'; save();
+  if (!howSeen()) showHowTo(0, showBirth); else showBirth();
 }
 function resume() {
   SFX.click();
@@ -499,7 +631,7 @@ function showSummary(sum) {
   SFX.clear();
   setTimeout(() => {
     document.querySelectorAll('.track i').forEach(t => t.style.width = t.dataset.w + '%');
-    document.querySelectorAll('.stars span').forEach((s, i) => { if (i < stars) setTimeout(() => { s.classList.add('got'); tone(880 + i * 110, .12, 'triangle', 0, .08); }, 250 * i); });
+    document.querySelectorAll('.stars span').forEach((s, i) => { if (i < stars) setTimeout(() => { s.classList.add('got'); tone(880 + i * 110, .1, 0, .5); }, 250 * i); });
   }, 350);
   if (stars === 5) setTimeout(() => confetti(90), 1500);
 }
@@ -560,12 +692,12 @@ function cardHtml(e) {
   const lk = e.links.length ? '<div class="rsec">💫 이어진 선택</div><ul class="rlist">' + e.links.map(l => '<li>' + esc(l.seed) + ' → <b style="margin:0">' + esc(l.fruit) + '</b></li>').join('') + '</ul>' : '';
   const rf = G.REFLECT.map((q, i) => '<div class="rq">Q' + (i + 1) + '. ' + esc(q) + '</div><div class="ra">' + (S.reflect[i] ? esc(S.reflect[i]) : '<span style="color:#A9A4C4">(적지 않았어요)</span>') + '</div>').join('');
   const d = new Date();
-  return '<div class="rcard"><div class="rhead"><div class="rname">🎲 ' + esc(S.name) + '의 인생 한 판</div><div class="rtitle">' + (END_ICON[e.key] || '') + ' ' + esc(e.title) + '</div>' + (e.sub ? '<div class="rsub">' + esc(e.sub) + '</div>' : '') + '</div><div class="rin">' +
+  return '<div class="rcard"><div class="rhead"><div class="rname">🎲 ' + esc(S.name) + '의 인생 게임</div><div class="rtitle">' + (END_ICON[e.key] || '') + ' ' + esc(e.title) + '</div>' + (e.sub ? '<div class="rsub">' + esc(e.sub) + '</div>' : '') + '</div><div class="rin">' +
     '<div class="img"><img src="img/' + e.img + gsuf() + '.jpg" data-n="' + e.img + '" alt="" onerror="imgFail(this,true)"></div>' +
     '<div class="rtext">' + esc(e.text) + (e.note ? '<br>' + esc(e.note) : '') + '</div>' +
     '<div class="rsec">📈 능력치의 흐름</div><div class="gbox"><canvas class="graph" width="640" height="260"></canvas><div class="legend">' + legend + '</div></div>' +
     '<div class="rsec">🔀 인생의 갈림길</div>' + ch + lk + '<div class="rsec">💭 내 인생을 돌아보며</div>' + rf +
-    '<div class="rfoot">인생 한 판 · ' + d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate() + '</div></div></div>';
+    '<div class="rfoot">인생 게임 · 나의 선택이 나의 인생이 된다 · ' + d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate() + '</div></div></div>';
 }
 function showCard() {
   S.phase = 'card'; save(); theme('end');
@@ -584,7 +716,7 @@ function saveImg() {
   box.querySelectorAll('canvas.graph').forEach(drawGraph);
   setTimeout(() => {
     html2canvas(box.firstChild, { scale: 2, backgroundColor: null, useCORS: true }).then(c => {
-      const a = document.createElement('a'); a.download = '인생한판_' + S.name + '.png'; a.href = c.toDataURL('image/png');
+      const a = document.createElement('a'); a.download = '인생게임_' + S.name + '.png'; a.href = c.toDataURL('image/png');
       document.body.appendChild(a); a.click(); a.remove(); box.innerHTML = '';
     }).catch(() => { box.innerHTML = ''; alert('이미지 저장에 실패했어요. 화면을 직접 캡처해 주세요.'); });
   }, 150);
