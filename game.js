@@ -8,7 +8,7 @@ G.rng = Math.random;
 const STATS = ['hp', 'kn', 'mo', 'hap', 'rel'];
 const SNAME = { hp: '건강', kn: '지식', mo: '재산', hap: '행복', rel: '관계' };
 const SICON = { hp: '💪', kn: '📘', mo: '💰', hap: '😊', rel: '🤝' };
-const SCOLOR = { hp: '#E8806F', kn: '#6FA8DC', mo: '#E3B341', hap: '#F29CC1', rel: '#7CC6A4' };
+const SCOLOR = { hp: '#FF5D5D', kn: '#3E8BFF', mo: '#FFB020', hap: '#FF6FB5', rel: '#16C08C' };
 const STAGES = [
   { name: '아동기', range: [7, 12] }, { name: '청소년기', range: [13, 19] },
   { name: '청년기', range: [20, 34] }, { name: '중년기', range: [35, 59] },
