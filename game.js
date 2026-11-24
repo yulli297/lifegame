@@ -32,6 +32,7 @@ const CFG = {
   illHp: 25, illChance: 0.3, // 큰 병 조건/확률
   earlyEndHp: 20,            // 노년기 일찍 마무리 기준
   lottoP: 0.01,
+  starRatio: 0.75,           // 직업 이벤트에서 성실한 선택 비율이 이 이상이면 중년기에 도전 기회
   income: { office: [0, 0, 3, 4, 0], doctor: [0, 0, -4, 8, 0], jobless: [0, 0, -4, 0, 0], athlete: [0, 0, 4, 1, 0], idol: [0, 0, -2, 4, 0], diplomat: [0, 0, 2, 4, 0], investor: [0, 0, 2, 5, 0], teacher: [0, 0, 2, 3, 0] },
   end: { balMin: 38, balSpread: 45, luckAbs: 30, lopMin: 22, lopSpread: 58 }
 };
@@ -111,6 +112,9 @@ const REFLECT = [
 /* ---------- 이벤트 데이터 ---------- */
 const c = (t, fx, r, o) => Object.assign({ t, fx, r }, o || {});
 const E = (id, stage, type, title, text, choices, o) => Object.assign({ id, stage, type, title, text, choices }, o || {});
+
+const STAR_P = 0.6;
+const tryC = (t, fx, ok, ng, o) => c(t, fx, '', Object.assign({ ch: { p: STAR_P, src: 'effort', ok, ng } }, o || {}));
 
 const EVENTS = [
 /* ===== 아동기 ===== */
@@ -559,6 +563,71 @@ E('tch_end', 4, 'job', '마지막 종례', '교단을 떠나는 날, 아이들�
   c('마을 도서관에서 책 읽어 주기 봉사를 약속한다', { rel: 5, hap: 5, hp: -1 }, '선생님의 수업은 도서관에서 계속 이어졌어요.')
 ], { job: 'teacher' }),
 
+/* ===== 직업 도전 이벤트: 직업 생활을 성실히 해 온 경우 중년기 끝에 찾아오는 기회 (성공 60%) ===== */
+E('of_star', 3, 'special', '해외 프로젝트의 책임자', '성실하게 일해 온 모습이 인정받아 큰 해외 프로젝트의 책임자로 추천받았어요. 성공할 수도, 아닐 수도 있어요.', [
+  tryC('밤낮으로 준비해 직접 이끈다', { hp: -3 },
+    { fx: { mo: 10, hap: 7, kn: 3 }, r: '프로젝트가 성공했어요! 팀장으로 승진했어요.', k: '해외 프로젝트를 성공으로 이끌었어요' },
+    { fx: { hap: -3, kn: 4 }, r: '아쉽게 계약은 이뤄지지 않았지만, 큰 일을 이끄는 법을 배웠어요.', k: '해외 프로젝트에 도전했어요' }),
+  tryC('팀원들과 역할을 나누어 함께 준비한다', { rel: 2 },
+    { fx: { mo: 8, hap: 6, rel: 4 }, r: '함께 이룬 성공이라 기쁨이 몇 배로 커졌어요!', k: '팀원들과 함께 해외 프로젝트를 성공시켰어요' },
+    { fx: { rel: 3, hap: -2 }, r: '결과는 아쉬웠지만 팀원들과 더 끈끈해졌어요.', k: '팀원들과 함께 해외 프로젝트에 도전했어요' }),
+  c('지금은 가족이 먼저라며 정중히 사양한다', { rel: 5, hap: 2, mo: -1 }, '가족과 보낸 저녁이 어떤 성과보다 따뜻했어요.')
+], { job: 'office', star: true }),
+E('dr_star', 3, 'special', '새로운 치료법 연구', '환자를 정성껏 돌봐 온 경험 덕분에 새로운 치료법 연구팀에 뽑혔어요. 성공할 수도, 아닐 수도 있어요.', [
+  tryC('연구에 온 힘을 쏟는다', { hp: -3 },
+    { fx: { kn: 6, hap: 8, mo: 5 }, r: '연구가 성공했어요! 많은 환자들이 새 치료를 받게 되었어요.', k: '새로운 치료법 연구를 성공시켰어요' },
+    { fx: { kn: 4, hap: -3 }, r: '이번 연구는 실패했지만, 다음 연구자들에게 소중한 기록을 남겼어요.', k: '새로운 치료법 연구에 도전했어요' }),
+  tryC('여러 병원 의사들과 함께 연구한다', { rel: 2 },
+    { fx: { kn: 5, rel: 5, hap: 6 }, r: '함께 힘을 모은 연구가 성공했어요!', k: '동료들과 새로운 치료법을 만들었어요' },
+    { fx: { rel: 3, kn: 2, hap: -2 }, r: '결과는 아쉬웠지만 든든한 동료들을 얻었어요.', k: '동료들과 새로운 치료법에 도전했어요' }),
+  c('지금 돌보는 환자들 곁에 남는다', { rel: 5, hap: 3 }, '익숙한 진료실에서 환자들의 웃음을 지켰어요.')
+], { job: 'doctor', star: true }),
+E('ath_star', 3, 'special', '국가대표 선발전', '그동안 성실하게 뛴 모습이 눈에 띄어 국가대표 선발전에 초대받았어요. 성공할 수도, 아닐 수도 있어요.', [
+  tryC('모든 힘을 다해 도전한다', { hp: -3 },
+    { fx: { mo: 9, hap: 10, rel: 2 }, r: '국가대표로 뽑혔어요! 나라를 대표하는 유니폼을 입고 경기장에 섰어요.', k: '국가대표로 뽑혀 나라를 대표했어요' },
+    { fx: { hap: -3, kn: 3 }, r: '아쉽게 떨어졌지만, 내게 부족한 점을 정확히 알게 되었어요.', k: '국가대표 선발전에 도전했어요' }),
+  tryC('동료들과 함께 훈련하며 차분히 준비한다', { rel: 2 },
+    { fx: { mo: 7, hap: 8, rel: 4 }, r: '함께 훈련한 동료와 나란히 국가대표가 되었어요!', k: '동료와 함께 국가대표가 되었어요' },
+    { fx: { rel: 3, hap: -2 }, r: '선발되진 못했지만 동료들이 따뜻하게 위로해 주었어요.', k: '동료들과 국가대표 선발전에 도전했어요' }),
+  c('몸 상태를 생각해 후배에게 기회를 양보한다', { hp: 4, rel: 4, hap: -1 }, '후배가 고맙다며 꼭 잘 해내겠다고 약속했어요.')
+], { job: 'athlete', star: true }),
+E('idol_star', 3, 'special', '월드 투어 제안', '꾸준히 활동해 온 덕분에 여러 나라를 도는 월드 투어 제안이 들어왔어요. 성공할 수도, 아닐 수도 있어요.', [
+  tryC('여러 나라 말과 무대를 철저히 준비해 도전한다', { hp: -3, kn: 2 },
+    { fx: { mo: 10, hap: 9, rel: 2 }, r: '여러 나라 팬들이 우리 노래를 따라 불렀어요! 월드 투어가 대성공이었어요.', k: '월드 투어를 성공시켰어요' },
+    { fx: { hap: -3, kn: 3 }, r: '관객이 생각보다 적었지만, 큰 무대에서 많은 것을 배웠어요.', k: '월드 투어에 도전했어요' }),
+  tryC('멤버들과 건강을 챙기며 무리하지 않게 준비한다', { hp: 2 },
+    { fx: { mo: 8, hap: 8, rel: 3 }, r: '모두 건강하게 투어를 마치고 큰 박수를 받았어요!', k: '멤버들과 함께 월드 투어를 마쳤어요' },
+    { fx: { rel: 3, hap: -2 }, r: '투어는 아쉽게 끝났지만 멤버들과 더 단단해졌어요.', k: '멤버들과 월드 투어에 도전했어요' }),
+  c('지금은 쉬어 갈 때라며 다음 기회로 미룬다', { hp: 5, hap: 2, mo: -2 }, '충분히 쉬고 나니 다시 노래하고 싶은 마음이 샘솟았어요.')
+], { job: 'idol', star: true }),
+E('dip_star', 3, 'special', '평화 협정 회의', '그동안 쌓아 온 신뢰 덕분에 여러 나라가 모이는 평화 협정 회의의 대표를 맡게 되었어요. 성공할 수도, 아닐 수도 있어요.', [
+  tryC('꼼꼼히 자료를 준비해 협상에 나선다', { hp: -3, kn: 2 },
+    { fx: { kn: 5, hap: 8, rel: 6 }, r: '협정이 맺어졌어요! 여러 나라가 다툼 대신 대화를 약속했어요.', k: '평화 협정을 이끌어 냈어요' },
+    { fx: { kn: 3, hap: -3 }, r: '협정은 다음으로 미뤄졌지만, 대화를 이어 갈 길을 열어 두었어요.', k: '평화 협정에 도전했어요' }),
+  tryC('각 나라 대표들과 먼저 신뢰를 쌓으며 다가간다', { rel: 2 },
+    { fx: { rel: 8, hap: 7, mo: 2 }, r: '서로를 믿게 된 대표들이 마침내 협정에 서명했어요!', k: '신뢰를 쌓아 평화 협정을 맺었어요' },
+    { fx: { rel: 3, hap: -2 }, r: '협정은 이루지 못했지만 여러 나라에 좋은 친구가 생겼어요.', k: '신뢰를 쌓으며 평화 협정에 도전했어요' }),
+  c('경험 많은 선배에게 대표를 맡기고 곁에서 돕는다', { rel: 4, kn: 2 }, '곁에서 돕는 동안 많은 것을 배웠어요.')
+], { job: 'diplomat', star: true }),
+E('inv_star', 3, 'special', '오래 공부한 회사', '몇 년 동안 꼼꼼히 분석해 온 작은 회사가 있어요. 드디어 그 회사의 결과가 나올 때가 되었어요. 성공할 수도, 아닐 수도 있어요.', [
+  tryC('분석을 믿고 원칙대로 투자를 이어 간다', {},
+    { fx: { mo: 13, hap: 6, kn: 2 }, r: '그 회사가 크게 성장했어요! 오랜 공부가 결실을 맺었어요.', k: '오래 공부한 회사에 투자해 성공했어요' },
+    { fx: { mo: -3, kn: 4 }, r: '기대만큼 성장하진 못했지만, 나누어 투자한 덕분에 손해는 크지 않았어요.', k: '오래 공부한 회사에 투자했어요' }),
+  tryC('고객에게 근거를 자세히 설명하고 함께 투자한다', { rel: 2 },
+    { fx: { mo: 9, rel: 6, hap: 5 }, r: '고객들과 함께 큰 결실을 나누었어요!', k: '고객과 함께 투자해 성공했어요' },
+    { fx: { rel: 2, mo: -2, kn: 2 }, r: '결과는 아쉬웠지만 미리 설명해 둔 덕분에 고객들이 믿어 주었어요.', k: '고객과 함께 투자에 도전했어요' }),
+  c('확신이 서지 않아 이번에는 지켜보기만 한다', { hap: 1, kn: 1 }, '조급해하지 않고 다음 기회를 기다리기로 했어요.')
+], { job: 'investor', star: true }),
+E('tch_star', 3, 'special', '전국 선생님 앞에서', '아이들과 함께 만든 수업이 알려져, 전국 선생님들 앞에서 수업 방법을 소개해 달라는 요청이 왔어요. 성공할 수도, 아닐 수도 있어요.', [
+  tryC('주말마다 발표를 준비해 도전한다', { hp: -3 },
+    { fx: { kn: 5, hap: 8, rel: 4 }, r: '발표가 큰 호응을 얻어 "올해의 선생님"으로 뽑혔어요!', k: '"올해의 선생님"으로 뽑혔어요' },
+    { fx: { kn: 4, hap: -3 }, r: '발표는 서툴렀지만 다른 선생님들께 좋은 아이디어를 많이 얻었어요.', k: '전국 선생님들 앞에서 발표에 도전했어요' }),
+  tryC('반 아이들과 함께 수업 영상을 만들어 소개한다', { rel: 2 },
+    { fx: { rel: 6, hap: 8, kn: 2 }, r: '아이들이 주인공인 영상에 모두가 감동했어요!', k: '아이들과 함께 만든 수업으로 큰 박수를 받았어요' },
+    { fx: { rel: 4, hap: -2 }, r: '영상은 아쉬웠지만 아이들과 만든 추억은 오래 남았어요.', k: '아이들과 함께 수업 소개에 도전했어요' }),
+  c('발표 대신 우리 반 아이들 곁을 지킨다', { rel: 5, hap: 3 }, '평범한 하루하루가 아이들에게는 큰 선물이었어요.')
+], { job: 'teacher', star: true }),
+
 /* ===== 위기 이벤트 (능력치 0 도달 시) ===== */
 E('cr_hp', 2, 'crisis', '몸이 보낸 마지막 신호', '오랫동안 몸을 돌보지 못한 탓에 쓰러져 사랑병원에 입원했어요. 이제는 몸을 되돌리는 일이 가장 중요해요.', [
   c('치료에 집중하며 충분히 쉰다', { hp: 26, mo: -8, hap: -2 }, '병원의 하얀 천장 아래에서 천천히 회복해 갔어요.', { tag: ['일어선사람'], k: '몸이 무너졌지만 치료받으며 다시 일어섰어요' }),
@@ -588,7 +657,21 @@ E('cr_hap', 2, 'crisis', '지쳐 버린 마음', '마음이 지쳐 아무것도 
 ];
 
 const EV = {};
+
+/* 직업 이벤트에서 성실하고 책임감 있는 선택 (중년기 '도전 이벤트' 조건으로 쓰임) */
+const GOOD = {
+  jl_1: [0, 1], jl_2: [0, 1, 2],
+  of_intro: [0, 1], of_m1: [1, 2], of_m2: [0, 1], of_m3: [0, 1],
+  dr_1: [0, 2], dr_2: [0, 2], dr_3: [0, 1], dr_m1: [0, 1], dr_m2: [0, 2], dr_m3: [0, 2],
+  ath_1: [0, 1], ath_2: [0, 1], ath_m1: [0, 2], ath_m2: [0, 1], ath_m3: [0, 1],
+  idol_1: [0, 2], idol_2: [0, 1], idol_m1: [0, 2], idol_m2: [0, 1], idol_m3: [0, 1],
+  dip_1: [0, 2], dip_2: [0, 2], dip_m1: [0, 2], dip_m2: [0, 1], dip_m3: [0, 2],
+  inv_1: [0, 1], inv_2: [0, 2], inv_m1: [0, 2], inv_m2: [0, 1], inv_m3: [0, 2],
+  tch_1: [0, 1], tch_2: [0, 1], tch_m1: [0, 1], tch_m2: [0, 2], tch_m3: [0, 1]
+};
 EVENTS.forEach(e => { EV[e.id] = e; if (e.type !== 'pool' && !e.img) e.img = e.id; });
+for (const id in GOOD) GOOD[id].forEach(i => { if (EV[id] && EV[id].choices[i]) EV[id].choices[i].g = 1; });
+const STAR_OF = {}; EVENTS.forEach(e => { if (e.star) STAR_OF[e.job] = e.id; });
 
 /* ---------- 상태 ---------- */
 const has = (S, t) => S.tags.includes(t);
@@ -649,17 +732,30 @@ function drawPool(S) {
 }
 function drawJob(S) {
   if (!S.careerKey) return null;
-  const cand = EVENTS.filter(e => e.type === 'job' && e.job === S.careerKey && e.stage === S.stage && !S.used[e.id]);
+  const cand = EVENTS.filter(e => e.type === 'job' && !e.star && e.job === S.careerKey && e.stage === S.stage && !S.used[e.id]);
   if (!cand.length) return null;
   const seqd = cand.filter(e => e.seq);
   if (seqd.length) return seqd.sort((a, b) => a.seq - b.seq)[0];
   return cand[Math.floor(G.rng() * cand.length)];
 }
 
+function starReady(S) {
+  const good = S.jobGood || 0, seen = S.jobSeen || 0;
+  return !!STAR_OF[S.careerKey] && good >= 3 && good / Math.max(1, seen) >= CFG.starRatio;
+}
+G.starReady = starReady;
+
 G.nextEvent = function (S) {
   if (S.curId) return EV[S.curId];
   for (;;) {
-    if (!S.queue.length) return null;
+    if (!S.queue.length) {
+      if (S.stage === 3 && !S.starDone && starReady(S)) {
+        S.starDone = true; S.queue.push('m:' + STAR_OF[S.careerKey]); S.len++;
+        S.links.push({ seed: '성실하게 쌓아 온 직업 생활', fruit: EV[STAR_OF[S.careerKey]].title });
+        continue;
+      }
+      return null;
+    }
     const q = S.queue.shift();
     let ev = null;
     if (q === 'p') { if (S.skipPool > 0) { S.skipPool--; continue; } ev = drawPool(S); }
@@ -708,14 +804,15 @@ G.choose = function (S, ev, idx) {
     let mag = 0; const addMag = fx => { for (const k in (fx || {})) mag += Math.abs(fx[k]); };
     let kLabel = ch.k || null;
     applyFx(S, ch.fx, src); addMag(ch.fx);
+    if (ev.type === 'job') { S.jobSeen = (S.jobSeen || 0) + 1; if (ch.g) S.jobGood = (S.jobGood || 0) + 1; }
     if (ch.ch) {
       const ok = G.rng() < ch.ch.p;
       const o = ok ? ch.ch.ok : ch.ch.ng;
-      applyFx(S, o.fx, ok ? 'luck' : 'effort'); addMag(o.fx);
+      applyFx(S, o.fx, ok ? (ch.ch.src || 'luck') : 'effort'); addMag(o.fx);
       out.text = o.r;
       (o.tag || []).forEach(t => { if (!has(S, t)) S.tags.push(t); });
-      if (ok && o.k) kLabel = o.k; else if (!ok) kLabel = null;
-      out.lucky = ok;
+      kLabel = o.k || (ok ? kLabel : null);
+      if (ch.ch.src) { out.tried = true; out.success = ok; } else out.lucky = ok;
     }
     (ch.bump || []).forEach(b => {
       if (has(S, b.tag)) { applyFx(S, b.fx, 'boom'); addMag(b.fx); out.extra.push(b.r); S.links.push({ seed: TAGS[b.tag], fruit: ev.title }); }

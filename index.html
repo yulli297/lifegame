@@ -276,7 +276,7 @@ const SND_KEY = 'lifegame_sound_v1';
 const SHOW_PLACEHOLDER = true;   // 그림 파일(img/이름.png)이 없을 때 '그림 자리'를 보여줄지 (완성 후 false)
 const STAGE_ICON = ['🎒', '📚', '🚀', '🏡', '🌅'];
 const AVATAR = ['🧒', '🧑‍🎓', '🧑', '🧑‍💼', '🧓'];
-const RIBBON = { pool: '🎴 일상 카드', must: '⭐ 운명 카드', job: '💼 직업 카드', special: '✨ 특별 카드', crisis: '🔥 위기 카드' };
+const RIBBON = { pool: '🎴 일상 카드', must: '⭐ 운명 카드', job: '💼 직업 카드', special: '✨ 특별 카드', crisis: '🔥 위기 카드', star: '🏆 도전 카드' };
 const END_ICON = { balanced: '⚖️', rise: '🌱', lucky: '🍀', effort: '💦', lopsided: '🎯' };
 const END_ORDER = ['balanced', 'effort', 'rise', 'lucky', 'lopsided'];
 let S = null, ev = null, busy = false, sel = -1;
@@ -436,7 +436,7 @@ function showEvent() {
   if (!ev) return stageEnd();
   S.phase = 'play'; save(); busy = false;
   const ch = G.getChoices(S, ev);
-  view(hud(true) + '<div class="main" style="margin-top:22px"><div class="panel ecard deal t-' + ev.type + (ch.length > 4 ? ' narrow' : '') + '"><div class="ribbon">' + (RIBBON[ev.type] || RIBBON.pool) + '</div>' + img(ev.img) +
+  view(hud(true) + '<div class="main" style="margin-top:22px"><div class="panel ecard deal t-' + ev.type + (ch.length > 4 ? ' narrow' : '') + '"><div class="ribbon">' + (ev.star ? RIBBON.star : (RIBBON[ev.type] || RIBBON.pool)) + '</div>' + img(ev.img) +
     '<div class="ebody"><div class="etitle">' + esc(ev.title) + '</div><p class="etext">' + esc(ev.text) + '</p></div></div>' +
     '<div class="col" style="flex:1;padding-left:' + (ch.length > 4 ? 8 : 26) + 'px"><div class="choices' + (ch.length > 4 ? ' many' : '') + '">' +
     ch.map((c, i) => '<button class="choice ' + (c.rec ? 'rec' : '') + '" onclick="pick(' + i + ',this)"><span class="k">' + (c.rec ? '🌱' : (i + 1)) + '</span><span>' + (c.rec ? '<span class="rt">마음의 소리</span>' : '') + choiceText(c.t) + '</span></button>').join('') +
@@ -456,11 +456,11 @@ function pick(i, btn) {
 function showResult(out) {
   save(); busy = false;
   view(hud(true, true) + '<div class="main" style="margin-top:20px"><div class="reswrap">' +
-    '<div class="panel picked-card deal ' + (out.lucky ? 'win' : '') + '">' + (out.lucky ? '' : '<div class="stamp">선택 완료</div>') + '<div><span class="tag">내 선택</span></div><div class="txt">' + esc(out.choice) + '</div></div>' +
-    '<div class="rright">' + (out.lucky ? '<div class="jackpot">🎉 당첨! 🎉</div>' : '') + '<div class="bubble deal">' + esc(out.text) + '</div>' +
+    '<div class="panel picked-card deal ' + (out.lucky || out.success ? 'win' : '') + '">' + (out.lucky || out.success ? '' : '<div class="stamp">' + (out.tried ? '다음 기회에!' : '선택 완료') + '</div>') + '<div><span class="tag">내 선택</span></div><div class="txt">' + esc(out.choice) + '</div></div>' +
+    '<div class="rright">' + (out.lucky ? '<div class="jackpot">🎉 당첨! 🎉</div>' : (out.success ? '<div class="jackpot">🏆 도전 성공! 🏆</div>' : (out.tried ? '<div class="jackpot" style="color:#fff;font-size:28px">💪 아쉽지만 좋은 경험!</div>' : ''))) + '<div class="bubble deal">' + esc(out.text) + '</div>' +
     out.extra.map(x => '<div class="boom"><span class="bt">💫 부메랑!</span><span>' + esc(x) + '</span></div>').join('') +
     '<button class="btn go" style="margin-top:20px" onclick="nextTurn()">다음 칸으로</button></div></div></div>');
-  if (out.lucky) { SFX.win(); confetti(200); }
+  if (out.lucky || out.success) { SFX.win(); confetti(200); }
   else if (out.extra.length) setTimeout(SFX.boom, 350);
 }
 function nextTurn() { if (busy) return; busy = true; SFX.click(); showEvent(); }
