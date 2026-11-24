@@ -156,6 +156,14 @@ body.compact .grip{display:none}
 .choice.rec .rt{display:block;font-family:var(--game);color:var(--teald);font-size:14px}
 .choice.picked{background:var(--yellow)!important;animation:none}
 .choice.dim{opacity:.35;animation:none}
+.choices.many{display:grid;grid-template-columns:1fr 1fr;align-content:center;gap:10px}
+.choices.many .choice{font-size:14px;padding:9px 10px;gap:8px;line-height:1.35}
+.choices.many .choice .k{width:28px;height:28px;font-size:15px}
+.choices.many .choice.sel::before{display:none}
+.choice .jn{display:block;font-family:var(--game);font-size:18px;line-height:1.2}
+.choice .jd{display:block;font-size:12.5px;color:var(--ink2);line-height:1.35;margin-top:2px}
+.ecard.narrow{width:36%}
+.ecard.narrow .img{height:150px}
 .hint{font-family:var(--game);color:rgba(255,255,255,.85);font-size:13px;text-align:center;margin-top:10px}
 
 /* 결과 */
@@ -359,7 +367,7 @@ function pad(k) {
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') { if (e.key === 'Enter' && e.target.id === 'nick') startNew(); return; }
   const n = parseInt(e.key, 10);
-  if (n >= 1 && n <= 4) { const b = document.querySelectorAll('.choice')[n - 1]; if (b && !b.disabled) b.click(); return; }
+  if (n >= 1 && n <= 9) { const b = document.querySelectorAll('.choice')[n - 1]; if (b && !b.disabled) b.click(); return; }
   if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); pad('up'); }
   else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); pad('down'); }
   else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pad('a'); }
@@ -428,12 +436,16 @@ function showEvent() {
   if (!ev) return stageEnd();
   S.phase = 'play'; save(); busy = false;
   const ch = G.getChoices(S, ev);
-  view(hud(true) + '<div class="main" style="margin-top:22px"><div class="panel ecard deal t-' + ev.type + '"><div class="ribbon">' + (RIBBON[ev.type] || RIBBON.pool) + '</div>' + img(ev.img) +
+  view(hud(true) + '<div class="main" style="margin-top:22px"><div class="panel ecard deal t-' + ev.type + (ch.length > 4 ? ' narrow' : '') + '"><div class="ribbon">' + (RIBBON[ev.type] || RIBBON.pool) + '</div>' + img(ev.img) +
     '<div class="ebody"><div class="etitle">' + esc(ev.title) + '</div><p class="etext">' + esc(ev.text) + '</p></div></div>' +
-    '<div class="col" style="flex:1;padding-left:26px"><div class="choices">' +
-    ch.map((c, i) => '<button class="choice ' + (c.rec ? 'rec' : '') + '" onclick="pick(' + i + ',this)"><span class="k">' + (c.rec ? '🌱' : (i + 1)) + '</span><span>' + (c.rec ? '<span class="rt">마음의 소리</span>' : '') + esc(c.t) + '</span></button>').join('') +
-    '</div><div class="hint">✚ 십자키로 고르고 Ⓐ로 결정 · 숫자키 1~' + ch.length + '</div></div></div>');
+    '<div class="col" style="flex:1;padding-left:' + (ch.length > 4 ? 8 : 26) + 'px"><div class="choices' + (ch.length > 4 ? ' many' : '') + '">' +
+    ch.map((c, i) => '<button class="choice ' + (c.rec ? 'rec' : '') + '" onclick="pick(' + i + ',this)"><span class="k">' + (c.rec ? '🌱' : (i + 1)) + '</span><span>' + (c.rec ? '<span class="rt">마음의 소리</span>' : '') + choiceText(c.t) + '</span></button>').join('') +
+    '</div><div class="hint">✚ 십자키로 고르고 Ⓐ로 결정 · 숫자키 1~' + Math.min(ch.length, 9) + '</div></div></div>');
   ev.type === 'crisis' ? SFX.crisis() : SFX.card();
+}
+function choiceText(t) {
+  const m = String(t).split(' — ');
+  return m.length > 1 ? '<span class="jn">' + esc(m[0]) + '</span><span class="jd">' + esc(m.slice(1).join(' — ')) + '</span>' : esc(t);
 }
 function pick(i, btn) {
   if (busy) return; busy = true;
