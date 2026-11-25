@@ -102,6 +102,9 @@ body.compact .grip{display:none}
 .gbtn{flex:1;font-family:var(--game);font-size:18px;padding:7px;border:3px solid var(--ink);border-radius:14px;background:#fff;color:var(--ink);cursor:pointer;box-shadow:0 4px 0 var(--ink)}
 .gbtn.on{background:#8FE3C5;transform:translateY(2px);box-shadow:0 2px 0 var(--ink)}
 .gsel.need .gbtn{animation:shakeX .4s}
+.msel{margin-top:8px}.msel .gbtn{font-size:16px;padding:5px 6px;line-height:1.15}.msel .gbtn.on{background:#FFE58A}
+.msel .gbtn small{display:block;font-family:var(--body);font-size:13px;color:var(--ink2)}
+.turns .cnt{font-family:var(--game);font-size:15px;color:#fff;background:rgba(255,255,255,.14);border-radius:10px;padding:3px 10px;white-space:nowrap}
 @keyframes shakeX{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 .dex{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:6px}
 .dexi{border:2.5px solid var(--ink);border-radius:11px;padding:5px 2px;font-size:11px;line-height:1.25;background:#fff;text-align:center;min-height:58px}
@@ -484,7 +487,8 @@ function hud(showTurns, after) {
   let turns = '';
   if (showTurns) {
     const cur = Math.max(0, Math.min(after ? S.idx - 1 : S.idx, S.len - 1));
-    for (let i = 0; i < S.len; i++) turns += '<div class="sq ' + (i < cur ? 'done' : (i === cur ? 'on' : '')) + '">' + (i < cur || (after && i === cur) ? '✔' : (i === cur ? '?' : '')) + '</div>';
+    if (S.len > 8) turns = '<div class="cnt">🃏 ' + (cur + 1) + ' / ' + S.len + '</div>';
+    else for (let i = 0; i < S.len; i++) turns += '<div class="sq ' + (i < cur ? 'done' : (i === cur ? 'on' : '')) + '">' + (i < cur || (after && i === cur) ? '✔' : (i === cur ? '?' : '')) + '</div>';
     turns = '<div class="turns">' + turns + '</div>';
   }
   return '<div class="hud"><div class="ava">' + (S.gender ? '<img src="img/ava_' + S.gender + S.stage + '.webp" alt="" onerror="this.replaceWith(document.createTextNode(\'' + AVATAR[S.gender][S.stage] + '\'))">' : AVATAR[''][S.stage]) + '</div><div class="who"><div class="nm">' + esc(S.name) + '</div><div class="ag">' + G.ageOf(S) + '세' + (jn ? ' · ' + esc(jn) : '') + '</div></div>' + road + turns + '</div>';
@@ -548,24 +552,28 @@ function howDone() { try { localStorage.setItem(HOW_KEY, '1'); } catch (e) {} HO
 function showStart() {
   theme('title');
   const sv = loadSave(), dex = getDex();
-  const resumeBtn = sv && sv.phase !== 'card' ? '<button class="btn small" onclick="resume()">💾 이어하기 · ' + esc(sv.name) + ' (' + G.STAGES[sv.stage].name + ')</button>' : '';
+  const resumeBtn = sv && sv.phase !== 'card' ? '<button class="btn small" onclick="resume()">💾 이어하기 · ' + esc(sv.name) + ' (' + G.STAGES[sv.stage].name + (sv.mode === 'long' ? ' · 길게' : '') + ')</button>' : '';
   const dexHtml = END_ORDER.map(k => { const on = dex.indexOf(k) >= 0; return '<div class="dexi ' + (on ? '' : 'lock') + '"><span class="e">' + (on ? END_ICON[k] : '❔') + '</span>' + (on ? esc(G.ENDINGS[k].title) : '???') + '</div>'; }).join('');
   view('<div class="main" style="margin:0;align-items:center"><div class="tleft tart"><img class="art" src="img/title_art.webp" alt="" onerror="this.remove()"><div class="tlogo"><div class="logo outline">인생 <span>게임</span></div><div class="tagline">나의 선택이 나의 인생이 된다</div></div><div class="press">▶ PRESS START ◀</div></div>' +
     '<div class="panel deal" style="flex:1">' +
     '<div class="rules"><div class="rule"><b>5단계</b>아동기→노년기</div><div class="rule"><b>💪📘💰😊🤝</b>고르게 지키기</div><div class="rule"><b>💫</b>선택이 돌아와요</div></div>' +
     '<input class="nick" type="text" id="nick" maxlength="8" placeholder="플레이어 이름 (8자)">' +
     '<div class="gsel"><button class="gbtn" id="g_m" onclick="pickG(\'m\')">👦 남학생</button><button class="gbtn" id="g_f" onclick="pickG(\'f\')">👧 여학생</button></div>' +
+    '<div class="gsel msel"><button class="gbtn" id="md_short" onclick="pickM(\'short\')">⚡ 짧게<small>약 25번 선택 · 15분</small></button><button class="gbtn" id="md_long" onclick="pickM(\'long\')">📚 길게<small>약 55번 선택 · 35분</small></button></div>' +
     '<button class="btn go" onclick="startNew()">게임 시작</button>' + resumeBtn +
     '<div class="sectionT"><span>📖 엔딩 도감 <small style="color:var(--ink2)">' + dex.length + ' / 5</small></span><button class="howbtn" onclick="showHowTo(0, showStart)">❓ 게임 방법</button></div><div class="dex">' + dexHtml + '</div></div></div>');
+  pickM(pickedM, true);
 }
 let pickedG = '';
+let pickedM = (function () { try { return localStorage.getItem('lifegame_mode_v1') || 'long'; } catch (e) { return 'long'; } })();
+function pickM(m, quiet) { pickedM = m; try { localStorage.setItem('lifegame_mode_v1', m); } catch (e) {} if (!quiet) SFX.move(); ['short', 'long'].forEach(x => { const b = $('md_' + x); if (b) b.classList.toggle('on', x === m); }); }
 function pickG(g) { pickedG = g; SFX.move(); ['m', 'f'].forEach(x => $('g_' + x).classList.toggle('on', x === g)); }
 function startNew() {
   const el = $('nick'); if (!el) return;
   if (!pickedG) { const gs = document.querySelector('.gsel'); gs.classList.remove('need'); void gs.offsetWidth; gs.classList.add('need'); SFX.crisis(); return; }
   SFX.pick();
   const name = (el.value || '').trim() || '나';
-  S = G.newState(name); S.gender = pickedG; S.phase = 'birth'; save();
+  S = G.newState(name, pickedM); S.gender = pickedG; S.phase = 'birth'; save();
   if (!howSeen()) showHowTo(0, showBirth); else showBirth();
 }
 function resume() {

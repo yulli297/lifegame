@@ -22,11 +22,16 @@ const PLANS = [
   ['j', 'm:o_second', 'm:o_look', 'm:o_final']
 ];
 const PLAN_LEN = [4, 5, 5, 6, 4];
+// 비슷한 느낌의 카드 묶음: 한 판에 묶음에서 한 장만 나와요
+const DUPS = [['c_allowance', 'c_allow'], ['t_money', 't_limited'], ['t_volunteer', 't_volunteer2'], ['y_health', 'y_checkup'], ['y_friend', 'y_friend2'], ['y_money', 'y_payday'], ['m_check_bad', 'm_warn'], ['m_saving', 'm_unexp']];
+const DUP_OF = {}; DUPS.forEach(g => g.forEach(id => { DUP_OF[id] = g; }));
 const CFG = {
   talentChance: 0.05, talentBonus: 10,
   floorYoung: 15,            // 20세 이전 능력치 최저 보호
   crisisClear: 30,           // 위기 해제 기준
   drift: { hp: [0, -2, -3, -4, 0], hap: [-3, -10, -11, -9, 0], rel: [0, -10, -12, -12, 0], kn: [0, 0, -5, -5, 0], mo: [0, 0, -4, -5, 0] },
+  longLuck: 2.6, longLop: 10,
+  longDrift: { hp: [0, -0.5, -0.7, -0.8, 0], hap: [-0.7, -1.1, -1.1, -1, 0], rel: [-0.6, -1, -1.1, -1, 0], kn: [-0.7, -0.7, -0.9, -0.9, 0], mo: [0, -0.2, -0.3, -0.3, 0] },  // 길게 모드: 기본보다 늘어난 카드 1장마다 단계 끝에 더 떨어지는 양
   neglect: { below: 45, d: -16, per: { hp: -6, mo: -8 } },  // 45 아래로 방치된 능력치는 단계가 끝날 때 더 떨어짐 (건강은 -6)
   famSoft: 2,
   marrySoft: 3,              // 가정이 있으면 중년기 관계·행복 감소 완화                // '가족시간' 태그가 있으면 관계 감소를 완화
@@ -964,9 +969,9 @@ function applyFx(S, fx, src) {
   clampAll(S);
 }
 
-G.newState = function (name) {
+G.newState = function (name, mode) {
   const S = {
-    v: 1, name: (name || '나').slice(0, 8), stage: 0, idx: 0, len: PLAN_LEN[0], queue: PLANS[0].slice(), skipPool: 0,
+    mode: mode === 'long' ? 'long' : 'short', v: 1, name: (name || '나').slice(0, 8), stage: 0, idx: 0, len: PLAN_LEN[0], queue: PLANS[0].slice(), skipPool: 0,
     st: { hp: 50, kn: 50, mo: 50, hap: 50, rel: 50 }, sc: { study: 0, sport: 0, art: 0, social: 0, econ: 0, care: 0 },
     tags: [], tagFrom: {}, blocked: [], careerKey: null, startCareer: null, used: {}, hist: [], imp: [], links: [],
     gain: { effort: 0, luck: 0, boom: 0, born: 0 }, crisis: null, crisisSeen: {}, crisisCount: 0,
@@ -977,6 +982,7 @@ G.newState = function (name) {
     const k = STATS[Math.floor(G.rng() * STATS.length)];
     S.talent = k; S.st[k] += CFG.talentBonus; S.gain.born += CFG.talentBonus;
   }
+  if (S.mode === 'long') buildLong(S);
   S.stageStart = Object.assign({}, S.st);
   S.hist.push(snap(S, 'start'));
   return S;
@@ -1004,12 +1010,54 @@ function weightedPick(list, w) {
   for (let i = 0; i < list.length; i++) { r -= ws[i]; if (r <= 0) return list[i]; }
   return list[list.length - 1];
 }
+function poolCand(S) {
+  return EVENTS.filter(e => e.type === 'pool' && e.stage === S.stage && !S.used[e.id] &&
+    !(DUP_OF[e.id] && DUP_OF[e.id].some(x => S.used[x])) &&
+    (!e.need || e.need.every(t => has(S, t))) && (!e.working || (S.careerKey && S.careerKey !== 'jobless')));
+}
+// 이 카드에 지금 내 예전 선택과 이어지는 선택지(💫/🔒)가 있는지
+function linkedNow(S, e) {
+  return (e.choices || []).some(c => (c.needTag && has(S, c.needTag)) || (c.blockTag && has(S, c.blockTag) && !(c.unless && has(S, c.unless))));
+}
+function poolWeight(S, e) {
+  let w = e.need ? 5 : (e.w || 1);
+  if (linkedNow(S, e)) w *= 4;
+  if (DUP_OF[e.id]) w *= 0.6;
+  return w;
+}
 function drawPool(S) {
   if (S.stage >= 2 && S.stage <= 3 && S.st.hp <= CFG.illHp && !has(S, '큰병') && !has(S, '건강관리') && !S.used.x_ill && G.rng() < CFG.illChance) return EV.x_ill;
-  const cand = EVENTS.filter(e => e.type === 'pool' && e.stage === S.stage && !S.used[e.id] && (!e.need || e.need.every(t => has(S, t))) && (!e.working || (S.careerKey && S.careerKey !== 'jobless')));
+  const cand = poolCand(S);
   if (!cand.length) return null;
-  return weightedPick(cand, e => (e.need ? 5 : (e.w || 1)));
+  return weightedPick(cand, e => poolWeight(S, e));
 }
+// 길게 모드: 비슷한 카드 묶음을 한 장으로 셌을 때 남은 공용 카드 수
+function poolLeft(S) {
+  const seen = {}; let n = 0;
+  poolCand(S).forEach(e => { const k = DUP_OF[e.id] ? DUP_OF[e.id][0] : e.id; if (!seen[k]) { seen[k] = 1; n++; } });
+  return n;
+}
+function jobLeft(S) {
+  if (!S.careerKey) return 0;
+  return EVENTS.filter(e => e.type === 'job' && !e.star && e.job === S.careerKey && e.stage === S.stage && !S.used[e.id] && (!e.need || e.need.every(t => has(S, t)))).length;
+}
+// 고정 카드 사이사이에 공용 카드 자리를 고르게 끼워 넣기
+function spread(base, n) {
+  // 고정 카드 뒤마다 생기는 빈자리에 공용 카드를 고르게 나누어 넣어요 (첫 카드는 그대로 맨 앞)
+  const gaps = base.map(() => 0);
+  for (let i = 0; i < n; i++) gaps[Math.floor(i * base.length / n) % base.length]++;
+  const out = [];
+  base.forEach((q, i) => { out.push(q); for (let k = 0; k < gaps[i]; k++) out.push('p'); });
+  return out;
+}
+function buildLong(S) {
+  let base = PLANS[S.stage].filter(q => q !== 'p');
+  if (S.stage === 3) { const nj = Math.max(4, jobLeft(S)); base = base.filter(q => q !== 'j'); base.splice(0, 0, 'j'); for (let i = 1; i < nj; i++) base.push('j'); }
+  const np = S.stage === 2 ? 0 : poolLeft(S);
+  S.queue = spread(base, np);
+  S.len = S.queue.length;
+}
+G.DUPS = DUPS;
 function drawJob(S) {
   if (!S.careerKey) return null;
   const cand = EVENTS.filter(e => e.type === 'job' && !e.star && e.job === S.careerKey && e.stage === S.stage && !S.used[e.id] && (!e.need || e.need.every(t => has(S, t))));
@@ -1061,8 +1109,9 @@ G.nextEvent = function (S) {
       if (id === 'o_look' && S.st.hp <= CFG.earlyEndHp) { S.early = true; continue; }
       ev = EV[id];
     } else if (q.indexOf('c:') === 0) ev = EV['cr_' + q.slice(2)];
-    if (!ev) continue;
+    if (!ev) { if (S.mode === 'long' && (q === 'p' || q === 'j')) S.len = Math.max(S.idx + 1, S.len - 1); continue; }
     S.used[ev.id] = true; S.curId = ev.id;
+    if (S.idx >= S.len) S.len = S.idx + 1;
     S.curRec = Math.floor(G.rng() * 2);
     if (ev.need) S.links.push({ seed: TAGS[ev.need[0]], fruit: ev.title });
     return ev;
@@ -1157,9 +1206,15 @@ G.choose = function (S, ev, idx) {
       if (ev.id === 'y_path') {
         S.startCareer = ch.setCareer;
         const n = { office: 3, doctor: 3, jobless: 2, athlete: 3, idol: 3, diplomat: 3, investor: 3, teacher: 3 }[ch.setCareer] || 3;
-        for (let i = 0; i < n; i++) S.queue.push('j');
-        for (let i = 0; i < 4 - n; i++) S.queue.push('p');
-        S.len = 5;
+        if (S.mode === 'long') {
+          const np = poolLeft(S), q = [];
+          for (let i = 0; i < Math.max(n, np); i++) { if (i < n) q.push('j'); if (i < np) q.push('p'); }
+          S.queue = S.queue.concat(q); S.len = S.idx + 1 + S.queue.length;
+        } else {
+          for (let i = 0; i < n; i++) S.queue.push('j');
+          for (let i = 0; i < 4 - n; i++) S.queue.push('p');
+          S.len = 5;
+        }
       }
     }
     if (kLabel) S.imp.push({ stage: S.stage, k: kLabel, mag });
@@ -1183,6 +1238,7 @@ G.endStage = function (S) {
     STATS.forEach(k => { if (CFG.drift[k]) { let d = CFG.drift[k][s]; if (k === 'rel' && d < 0 && has(S, '가족시간')) d += CFG.famSoft;
       if (k === 'hp' && d < 0 && has(S, '건강관리')) d = 0;
       if (has(S, '결혼') && s >= 3 && d < 0 && (k === 'rel' || k === 'hap')) d += CFG.marrySoft; S.st[k] += d; } });
+    if (S.mode === 'long') { const extra = Math.max(0, S.idx - PLAN_LEN[s]); STATS.forEach(k => { S.st[k] += Math.round(((CFG.longDrift[k] || [])[s] || 0) * extra); }); }
     if (s >= 2) { if (has(S, '운동습관')) S.st.hp += 2; if (has(S, '밤샘습관')) S.st.hp -= 2; STATS.forEach(k => { if (S.st[k] < CFG.neglect.below) S.st[k] += (CFG.neglect.per && CFG.neglect.per[k]) || CFG.neglect.d; }); }
     const key = s === 2 ? S.startCareer : S.careerKey;
     S.st.mo += ((CFG.income[key] || [0, 0, 0, 0, 0])[s]) || 0;
@@ -1205,6 +1261,7 @@ G.endStage = function (S) {
 G.beginStage = function (S) {
   S.stage++; S.stageStart = Object.assign({}, S.st); S.idx = 0; S.len = PLAN_LEN[S.stage];
   S.queue = PLANS[S.stage].slice(); S.phase = 'play'; S.summary = null;
+  if (S.mode === 'long') buildLong(S);
   if (S.later && S.later.length) { S.later.forEach(id => { S.queue.unshift('m:' + id); S.len++; }); S.later = []; }
   if (S.stage === 4 && has(S, '자녀')) { S.queue.splice(1, 0, 'm:o_kids'); S.len++; }
   checkCrisis(S);
@@ -1219,8 +1276,8 @@ G.ending = function (S) {
   let key;
   if (S.crisisCount > 0 && has(S, '일어선사람')) key = 'rise';
   else if (mn >= E_.balMin && spread <= E_.balSpread) key = 'balanced';
-  else if (S.gain.luck + S.gain.born >= E_.luckAbs) key = 'lucky';
-  else if (spread >= E_.lopSpread || mn < E_.lopMin) key = 'lopsided';
+  else if (S.gain.luck + S.gain.born >= E_.luckAbs * (S.mode === 'long' ? CFG.longLuck : 1)) key = 'lucky';
+  else if (spread >= E_.lopSpread + (S.mode === 'long' ? CFG.longLop : 0) || mn < E_.lopMin) key = 'lopsided';
   else if (1 - luckRatio >= E_.effortRatio) key = 'effort';   // 내 선택으로 얻은 몫이 대부분
   else key = 'lucky';
   const info = ENDINGS[key];
