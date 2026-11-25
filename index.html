@@ -603,11 +603,11 @@ function pick(i, btn) {
 function showResult(out) {
   save(); busy = false;
   view(hud(true, true) + '<div class="main" style="margin-top:20px"><div class="reswrap">' +
-    '<div class="panel picked-card deal ' + (out.lucky || out.success ? 'win' : '') + '">' + (out.lucky || out.success ? '' : '<div class="stamp">' + (out.tried ? '다음 기회에!' : '선택 완료') + '</div>') + '<div><span class="tag">내 선택</span></div><div class="txt">' + esc(out.choice) + '</div></div>' +
-    '<div class="rright">' + (out.lucky ? '<div class="jackpot">🎉 당첨! 🎉</div>' : (out.success ? '<div class="jackpot">🏆 도전 성공! 🏆</div>' : (out.tried ? '<div class="jackpot" style="color:#fff;font-size:28px">💪 아쉽지만 좋은 경험!</div>' : ''))) + '<div class="bubble deal">' + esc(out.text) + '</div>' +
+    '<div class="panel picked-card deal ' + (out.lucky || out.success ? 'win' : '') + '">' + (out.lucky || out.success ? '' : '<div class="stamp">' + (out.tried && !out.banner ? '다음 기회에!' : '선택 완료') + '</div>') + '<div><span class="tag">내 선택</span></div><div class="txt">' + esc(out.choice) + '</div></div>' +
+    '<div class="rright">' + (out.newJob ? '<div class="jackpot">💼 취업 성공! 이제 ' + esc(out.newJob) + '</div>' : '') + (out.banner ? '<div class="jackpot"' + (out.success ? '' : ' style="color:#fff;font-size:28px"') + '>' + esc(out.banner) + '</div>' : (out.lucky ? '<div class="jackpot">🎉 당첨! 🎉</div>' : (out.success ? '<div class="jackpot">🏆 도전 성공! 🏆</div>' : (out.tried ? '<div class="jackpot" style="color:#fff;font-size:28px">💪 아쉽지만 좋은 경험!</div>' : '')))) + '<div class="bubble deal">' + esc(out.text) + '</div>' +
     out.extra.map(x => '<div class="boom"><span class="bt">💫 부메랑!</span><span>' + esc(x) + '</span></div>').join('') +
     '<button class="btn go" style="margin-top:20px" onclick="nextTurn()">다음 칸으로</button></div></div></div>');
-  if (out.lucky || out.success) { SFX.win(); confetti(200); }
+  if (out.lucky || out.success || out.newJob) { SFX.win(); confetti(out.newJob ? 120 : 200); }
   else if (out.extra.length) setTimeout(SFX.boom, 350);
 }
 function nextTurn() { if (busy) return; busy = true; SFX.click(); showEvent(); }
