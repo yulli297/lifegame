@@ -160,6 +160,14 @@ body.compact .grip{display:none}
 .choice.rec .rt{display:block;font-family:var(--game);color:var(--teald);font-size:14px}
 .choice.picked{background:var(--yellow)!important;animation:none}
 .choice.dim{opacity:.35;animation:none}
+.choice.locked{background:#E9E6F3;color:#7A7699;border-style:dashed;box-shadow:0 3px 0 #B9B4D2;cursor:not-allowed;transform:none!important}
+.choice.locked .k{background:#B9B4D2;font-size:15px}
+.choice .lw{display:block;font-size:13.5px;color:#8A5A9E;margin-top:3px;line-height:1.35}
+.choice.open{background:#F2EAFF;border-color:var(--purpled)}
+.choice.open .k{background:var(--purple)}
+.choice .ot{display:block;font-family:var(--game);font-size:13.5px;color:var(--purpled);line-height:1.3;margin-bottom:2px}
+.memo{display:flex;gap:8px;align-items:center;background:#FFF4C7;border:2.5px dashed var(--yellowd);border-radius:14px;padding:8px 12px;margin-top:12px;font-size:15.5px;animation:pop .4s .3s both}
+.memo b{font-family:var(--game);font-weight:400;white-space:nowrap}
 .choices.many{display:grid;grid-template-columns:1fr 1fr;align-content:center;gap:10px}
 .choices.many .choice{font-size:14px;padding:9px 10px;gap:8px;line-height:1.35}
 .choices.many .choice .k{width:28px;height:28px;font-size:15px}
@@ -502,6 +510,7 @@ const HOW_PAGES = [
       '<div class="vbox"><div class="flow"><span class="fc">🧒 어릴 때 선택</span>▶<span class="fc" style="background:#EBDDFF">💫 부메랑</span>▶<span class="fc">🧑 어른의 결과</span></div></div>',
     b: [['❓', '바로 보이지 않아요', '선택할 때는 능력치가 얼마나 변했는지 알 수 없어요. 단계가 끝날 때 막대로 보여 줘요.'],
         ['💫', '부메랑', '예전의 선택이 나중에 다시 돌아와 새로운 일을 만들어요.'],
+        ['🔒', '닫히는 길, 열리는 길', '예전 선택 때문에 고를 수 없는 선택지는 🔒와 이유가 함께 보여요. 💫 표시는 예전 선택 덕분에 새로 열린 선택지예요.'],
         ['🔥', '위기와 회복', '오래 내버려 둔 능력치는 점점 떨어져요. 바닥나면 위기 카드가 오고, 🌱 마음의 소리로 다시 일어설 수 있어요.']] },
   { t: '조작과 엔딩', v: () => '<div class="vbox"><div class="keys"><span class="key">✚ 십자키 · ▲▼</span><span>선택지 고르기</span><span class="key">Ⓐ · Enter</span><span>결정, 다음으로</span><span class="key">1 2 3 4</span><span>숫자로 바로 고르기</span><span class="key">Ⓑ</span><span>게임 방법 다시 보기</span></div></div>' +
       '<div class="vbox"><div class="endi">' + END_ORDER.map(k => '<div><b>' + END_ICON[k] + '</b>' + esc(G.ENDINGS[k].title) + '</div>').join('') + '</div></div>',
@@ -586,7 +595,9 @@ function showEvent() {
   view(hud(true) + '<div class="main" style="margin-top:22px"><div class="panel ecard deal t-' + ev.type + (ch.length > 4 ? ' narrow' : '') + '"><div class="ribbon">' + (ev.star ? RIBBON.star : (RIBBON[ev.type] || RIBBON.pool)) + '</div>' + img(ev.img) +
     '<div class="ebody"><div class="etitle">' + esc(ev.title) + '</div><p class="etext">' + esc(ev.text) + '</p></div></div>' +
     '<div class="col" style="flex:1;padding-left:' + (ch.length > 4 ? 8 : 26) + 'px"><div class="choices' + (ch.length > 4 ? ' many' : '') + '">' +
-    ch.map((c, i) => '<button class="choice ' + (c.rec ? 'rec' : '') + '" onclick="pick(' + i + ',this)"><span class="k">' + (c.rec ? '🌱' : (i + 1)) + '</span><span>' + (c.rec ? '<span class="rt">마음의 소리</span>' : '') + choiceText(c.t) + '</span></button>').join('') +
+    ch.map((c, i) => c.locked
+      ? '<button class="choice locked" disabled><span class="k">🔒</span><span>' + choiceText(c.t) + '<span class="lw">' + esc(c.why) + '</span></span></button>'
+      : '<button class="choice ' + (c.rec ? 'rec' : '') + (c.from ? ' open' : '') + '" onclick="pick(' + i + ',this)"><span class="k">' + (c.rec ? '🌱' : (c.from ? '💫' : (i + 1))) + '</span><span>' + (c.rec ? '<span class="rt">마음의 소리</span>' : '') + (c.from ? '<span class="ot">' + esc(c.from) + '</span>' : '') + choiceText(c.t) + '</span></button>').join('') +
     '</div><div class="hint">✚ 십자키로 고르고 Ⓐ로 결정 · 숫자키 1~' + Math.min(ch.length, 9) + '</div></div></div>');
   ev.type === 'crisis' ? SFX.crisis() : SFX.card();
 }
@@ -606,6 +617,8 @@ function showResult(out) {
     '<div class="panel picked-card deal ' + (out.lucky || out.success ? 'win' : '') + '">' + (out.lucky || out.success ? '' : '<div class="stamp">' + (out.tried && !out.banner ? '다음 기회에!' : '선택 완료') + '</div>') + '<div><span class="tag">내 선택</span></div><div class="txt">' + esc(out.choice) + '</div></div>' +
     '<div class="rright">' + (out.newJob ? '<div class="jackpot">💼 취업 성공! 이제 ' + esc(out.newJob) + '</div>' : '') + (out.banner ? '<div class="jackpot"' + (out.success ? '' : ' style="color:#fff;font-size:28px"') + '>' + esc(out.banner) + '</div>' : (out.lucky ? '<div class="jackpot">🎉 당첨! 🎉</div>' : (out.success ? '<div class="jackpot">🏆 도전 성공! 🏆</div>' : (out.tried ? '<div class="jackpot" style="color:#fff;font-size:28px">💪 아쉽지만 좋은 경험!</div>' : '')))) + '<div class="bubble deal">' + esc(out.text) + '</div>' +
     out.extra.map(x => '<div class="boom"><span class="bt">💫 부메랑!</span><span>' + esc(x) + '</span></div>').join('') +
+    (out.unlockedBy ? '<div class="boom"><span class="bt">💫 이어진 선택</span><span>' + esc(out.unlockedBy) + '이었어요.</span></div>' : '') +
+    (out.newTags || []).map(t => '<div class="memo"><b>🔖 기억될 선택</b><span>\'' + esc(t) + '\'이(가) 생겼어요. 앞으로의 선택에 영향을 줄 수 있어요.</span></div>').join('') +
     '<button class="btn go" style="margin-top:20px" onclick="nextTurn()">다음 칸으로</button></div></div></div>');
   if (out.lucky || out.success || out.newJob) { SFX.win(); confetti(out.newJob ? 120 : 200); }
   else if (out.extra.length) setTimeout(SFX.boom, 350);
@@ -690,13 +703,14 @@ function cardHtml(e) {
   const legend = G.STATS.map(k => '<span><i style="background:' + G.SCOLOR[k] + '"></i>' + G.SNAME[k] + '</span>').join('');
   const ch = e.choices.length ? '<ul class="rlist">' + e.choices.map(c => '<li><b>' + esc(c.stage) + '</b>' + esc(c.k) + '</li>').join('') + '</ul>' : '<p class="sub">특별히 눈에 띄는 갈림길 없이 차분하게 걸어온 인생이었어요.</p>';
   const lk = e.links.length ? '<div class="rsec">💫 이어진 선택</div><ul class="rlist">' + e.links.map(l => '<li>' + esc(l.seed) + ' → <b style="margin:0">' + esc(l.fruit) + '</b></li>').join('') + '</ul>' : '';
+  const bl = e.blocked && e.blocked.length ? '<div class="rsec">🔒 예전 선택 때문에 닫힌 길</div><ul class="rlist">' + e.blocked.map(b => '<li><b>' + esc(b.ev) + '</b>「' + esc(b.t) + '」<br><span style="font-size:13px;color:#7A7699">' + esc(b.why) + '</span></li>').join('') + '</ul>' : '';
   const rf = G.REFLECT.map((q, i) => '<div class="rq">Q' + (i + 1) + '. ' + esc(q) + '</div><div class="ra">' + (S.reflect[i] ? esc(S.reflect[i]) : '<span style="color:#A9A4C4">(적지 않았어요)</span>') + '</div>').join('');
   const d = new Date();
   return '<div class="rcard"><div class="rhead"><div class="rname">🎲 ' + esc(S.name) + '의 인생 게임</div><div class="rtitle">' + (END_ICON[e.key] || '') + ' ' + esc(e.title) + '</div>' + (e.sub ? '<div class="rsub">' + esc(e.sub) + '</div>' : '') + '</div><div class="rin">' +
     '<div class="img"><img src="img/' + e.img + gsuf() + '.jpg" data-n="' + e.img + '" alt="" onerror="imgFail(this,true)"></div>' +
     '<div class="rtext">' + esc(e.text) + (e.note ? '<br>' + esc(e.note) : '') + '</div>' +
     '<div class="rsec">📈 능력치의 흐름</div><div class="gbox"><canvas class="graph" width="640" height="260"></canvas><div class="legend">' + legend + '</div></div>' +
-    '<div class="rsec">🔀 인생의 갈림길</div>' + ch + lk + '<div class="rsec">💭 내 인생을 돌아보며</div>' + rf +
+    '<div class="rsec">🔀 인생의 갈림길</div>' + ch + lk + bl + '<div class="rsec">💭 내 인생을 돌아보며</div>' + rf +
     '<div class="rfoot">인생 게임 · 나의 선택이 나의 인생이 된다 · ' + d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate() + '</div></div></div>';
 }
 function showCard() {
