@@ -27,7 +27,7 @@ const CFG = {
   floorYoung: 15,            // 20세 이전 능력치 최저 보호
   crisisClear: 30,           // 위기 해제 기준
   drift: { hp: [0, -2, -3, -4, 0], hap: [-3, -10, -12, -12, 0], rel: [0, -10, -12, -12, 0], kn: [0, 0, -6, -7, 0], mo: [0, 0, -4, -5, 0] },
-  neglect: { below: 45, d: -16, per: { hp: -6 } },  // 45 아래로 방치된 능력치는 단계가 끝날 때 더 떨어짐 (건강은 -6)
+  neglect: { below: 45, d: -16, per: { hp: -6, mo: -8 } },  // 45 아래로 방치된 능력치는 단계가 끝날 때 더 떨어짐 (건강은 -6)
   famSoft: 2,
   marrySoft: 3,              // 가정이 있으면 중년기 관계·행복 감소 완화                // '가족시간' 태그가 있으면 관계 감소를 완화
   illHp: 25, illChance: 0.3, // 큰 병 조건/확률
@@ -35,7 +35,7 @@ const CFG = {
   lottoP: 0.01,
   loveRel: 65,               // 청년기 끝에 관계가 이 이상이면 결혼 이야기가 찾아옴
   starRatio: 0.75,           // 직업 이벤트에서 성실한 선택 비율이 이 이상이면 중년기에 도전 기회
-  income: { office: [0, 0, 3, 4, 0], doctor: [0, 0, -4, 8, 0], jobless: [0, 0, -4, 0, 0], athlete: [0, 0, 4, 1, 0], idol: [0, 0, -2, 4, 0], diplomat: [0, 0, 2, 4, 0], investor: [0, 0, 2, 5, 0], teacher: [0, 0, 2, 3, 0] },
+  income: { office: [0, 0, 7, 9, 0], doctor: [0, 0, 0, 22, 0], jobless: [0, 0, -2, 3, 0], athlete: [0, 0, 7, 5, 0], idol: [0, 0, 2, 10, 0], diplomat: [0, 0, 6, 9, 0], investor: [0, 0, 5, 7, 0], teacher: [0, 0, 6, 8, 0] },  // 단계 끝 월급 (생활비 drift.mo보다 조금 많게)
   end: { balMin: 38, balSpread: 45, luckAbs: 28, lopSpread: 65, lopMin: 15, effortRatio: 0.8 }
 };
 G.CFG = CFG;
